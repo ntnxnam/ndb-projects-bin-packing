@@ -45,7 +45,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   track.className = 'gantt-track';
 
   /* Build a per-month usage map so we can show reducing balance per bar.
-     Only count FTEs from non-child entries (children share parent's allocation). */
+     Only count headcount from non-child entries (children share parent's allocation). */
   const MONTH_MS_LOCAL = 30 * 24 * 60 * 60 * 1000;
   const timelineStartMs = timeline.startDate.getTime();
   function toMonthIdx(d) {
@@ -97,15 +97,15 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const deps = project.rowNumber != null ? dependentsByProject?.get(project.rowNumber) : null;
     const whyLine = tooltipWhy(deps);
     const slNoPrefix = project.rowNumber != null ? `${project.rowNumber} - ` : '';
-    const rotationNote = rotated ? `\n↻ Rotated FTEs: ${rotatedFteCount} (reused from completed projects)` : '';
+    const rotationNote = rotated ? `\n↻ Rotated: ${rotatedFteCount} people (reused from completed projects)` : '';
     const inProgressNote = inProgress ? `\n⏳ In Progress — 50% remaining (${project.durationMonths ?? '—'} mo total → showing remaining)` : '';
 
     const remaining = remainingBefore[schedIdx];
-    const balanceNote = remaining != null ? `\nAvailable before allocation: ${Math.round(remaining)} FTEs` : '';
-    const groupNote = isChild ? `\n📦 Part of resource group (shares parent Sl No ${project.resourceGroupParentRow}'s FTEs — no additional capacity)` : '';
-    const parentNote = project.resourceGroupChildRows?.length ? `\n📦 Resource group parent (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} FTEs)` : '';
+    const balanceNote = remaining != null ? `\nAvailable before allocation: ${Math.round(remaining)} headcount` : '';
+    const groupNote = isChild ? `\n📦 Part of resource group (shares parent Sl No ${project.resourceGroupParentRow}'s people — no additional headcount)` : '';
+    const parentNote = project.resourceGroupChildRows?.length ? `\n📦 Resource group parent (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)` : '';
 
-    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people allocated${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}`;
+    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}`;
     bar.dataset.fte = effectiveFte.toFixed(1);
 
     const label = document.createElement('span');

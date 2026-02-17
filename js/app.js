@@ -253,7 +253,7 @@ function renderConsiderDropping(dropped, endDate, capacityLimit) {
     section.style.display = 'none';
     return;
   }
-  descEl.textContent = `With a capacity limit of ${capacityLimit} people, ${dropped.length} project(s) cannot fit by ${formatDate(endDate)}. Consider dropping or delaying these to meet the date.`;
+  descEl.textContent = `With ${capacityLimit} headcount, ${dropped.length} project(s) cannot fit by ${formatDate(endDate)}. Consider dropping or delaying these to meet the date.`;
   listEl.innerHTML = dropped.map(p => {
     const summary = (p.summary || '').slice(0, 60) + ((p.summary || '').length > 60 ? '…' : '');
     const slNo = p.rowNumber != null ? p.rowNumber : '—';
@@ -303,32 +303,30 @@ function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, ca
     }
   }
 
-  /* Build spare array */
+  /* Convert effective FTEs to headcount.
+     usage values are in effective FTE units (capacity pool = numFTEs × capacityPct%).
+     To get headcount: divide by (capacityPct / 100).  */
+  const headcount = numFTEs || Math.round(capacity);
+  const pctFactor = (capacityPct && capacityPct < 100) ? (capacityPct / 100) : 1;
   const months = [];
   let totalSpare = 0;
   let peakUsed = 0;
   for (let m = 0; m < totalMonths; m++) {
-    const used = usage.get(m) ?? 0;
-    const spare = Math.max(0, capacity - used);
-    peakUsed = Math.max(peakUsed, used);
-    totalSpare += spare;
+    const effectiveUsed = usage.get(m) ?? 0;
+    const usedHC = Math.round(effectiveUsed / pctFactor);
+    const spareHC = Math.max(0, headcount - usedHC);
+    peakUsed = Math.max(peakUsed, usedHC);
+    totalSpare += spareHC;
     const d = dateFromMonth(m);
-    months.push({ month: m, date: d, used, spare, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+    months.push({ month: m, date: d, used: usedHC, spare: spareHC, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
   }
 
   const avgSpare = totalMonths > 0 ? (totalSpare / totalMonths) : 0;
-  const capExplain = (numFTEs && capacityPct && capacityPct < 100)
-    ? `Effective capacity: ${capacity.toFixed(0)} (${numFTEs} FTEs × ${capacityPct}%)`
-    : `Effective capacity: ${capacity.toFixed(0)} FTEs`;
-  descEl.textContent = `${capExplain} · Peak allocated: ${peakUsed.toFixed(0)} people · Avg spare: ${avgSpare.toFixed(1)} people/month · Total spare: ${totalSpare.toFixed(0)} person-months over ${totalMonths} months`;
+  descEl.textContent = `${headcount} headcount (${capacityPct}% capacity each) · Peak allocated: ${peakUsed} · Avg available: ${Math.round(avgSpare)}/month · Total spare: ${totalSpare} person-months over ${totalMonths} months`;
 
-  const capLabel = (numFTEs && capacityPct && capacityPct < 100)
-    ? `${numFTEs} FTEs × ${capacityPct}% = ${capacity.toFixed(0)} effective`
-    : `${capacity.toFixed(0)} FTEs`;
-
-  /* Mini bar chart */
+  /* Mini bar chart — scale against headcount */
   chartEl.innerHTML = '';
-  const maxVal = capacity;
+  const maxVal = headcount;
   for (const m of months) {
     const col = document.createElement('div');
     col.className = 'spare-col';
@@ -347,19 +345,19 @@ function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, ca
     lbl.className = 'spare-label';
     lbl.textContent = m.label;
 
-    col.title = `${m.label}: ${m.used.toFixed(0)} allocated, ${m.spare.toFixed(0)} available (${capLabel})`;
+    col.title = `${m.label}: ${m.used} allocated, ${m.spare} available (of ${headcount})`;
     col.appendChild(spareBar);
     col.appendChild(usedBar);
     col.appendChild(lbl);
     chartEl.appendChild(col);
   }
 
-  /* List notable months with high spare capacity (> 20% of total) */
-  const threshold = capacity * 0.2;
+  /* List notable months with high spare capacity (> 20% of headcount) */
+  const threshold = headcount * 0.2;
   const notable = months.filter(m => m.spare >= threshold);
   if (notable.length > 0) {
     listEl.innerHTML = notable.map(m => {
-      return `<li><strong>${m.label}</strong>: ${m.used.toFixed(0)} of ${capLabel} allocated — <strong>${m.spare.toFixed(0)} people available</strong></li>`;
+      return `<li><strong>${m.label}</strong>: ${m.used} allocated, <strong>${m.spare} available</strong> (of ${headcount})</li>`;
     }).join('');
   } else {
     listEl.innerHTML = '<li>No months with significant spare capacity (>20% unused).</li>';
@@ -407,7 +405,7 @@ function render() {
     }
     if (ganttTitle) ganttTitle.textContent = '1. Fixed FTEs, fluid timeline';
     if (capacityLegend) {
-      capacityLegend.textContent = `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}%)`;
+      capacityLegend.textContent = `${state.numFTEs} headcount × ${state.capacityPct}% capacity each`;
     }
 
     const dependentsByProject = getDependentsByProject(filtered);
@@ -434,7 +432,7 @@ function render() {
     dropped = result.dropped || [];
     if (mode2Summary) {
       const countNote = (state.commitment || state.priority) && projects.length > 0 ? ` (${filtered.length} of ${projects.length} projects)` : '';
-      const capNote = `${state.numFTEs} FTEs × ${state.capacityPct}% = ${state.capacity.toFixed(0)} effective`;
+      const capNote = `${state.numFTEs} headcount × ${state.capacityPct}% capacity`;
       if (dropped.length === 0) {
         mode2Summary.textContent = `All ${filtered.length} projects fit by ${formatDate(state.endDate)} (${capNote}).${countNote}`;
       } else {
@@ -445,7 +443,7 @@ function render() {
     const timeline = { startDate: state.startDate, endDate: state.endDate };
     if (ganttTitle) ganttTitle.textContent = '2. Fixed timeline, fluid FTEs';
     if (capacityLegend) {
-      capacityLegend.textContent = `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}%)`;
+      capacityLegend.textContent = `${state.numFTEs} headcount × ${state.capacityPct}% capacity each`;
     }
 
     const dependentsByProject = getDependentsByProject(filtered);
@@ -458,7 +456,7 @@ function render() {
     renderSpareCapacity(schedule, state.startDate, timelineEnd, state.capacity, state.numFTEs, state.capacityPct);
     renderLongPoles(longPoles, timelineEnd);
     if (dropped.length > 0) {
-      renderConsiderDropping(dropped, state.endDate, state.capacity);
+      renderConsiderDropping(dropped, state.endDate, state.numFTEs);
     } else {
       renderConsiderDropping([], null, null);
     }
