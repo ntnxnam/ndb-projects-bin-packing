@@ -359,8 +359,7 @@ function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, ca
   const notable = months.filter(m => m.spare >= threshold);
   if (notable.length > 0) {
     listEl.innerHTML = notable.map(m => {
-      const pctUsed = capacity > 0 ? Math.round((m.used / capacity) * 100) : 0;
-      return `<li><strong>${m.label}</strong>: ${m.used.toFixed(0)} of ${capLabel} allocated (${pctUsed}%) — <strong>${m.spare.toFixed(0)} people available</strong></li>`;
+      return `<li><strong>${m.label}</strong>: ${m.used.toFixed(0)} of ${capLabel} allocated — <strong>${m.spare.toFixed(0)} people available</strong></li>`;
     }).join('');
   } else {
     listEl.innerHTML = '<li>No months with significant spare capacity (>20% unused).</li>';
