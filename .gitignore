@@ -1,0 +1,4 @@
+# Optional: uncomment to avoid committing raw CSV
+# data/sheet1.csv
+node_modules/
+.DS_Store

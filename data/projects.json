@@ -1,0 +1,252 @@
+[
+  {
+    "id": "FEAT-17977",
+    "feat": "FEAT-17977",
+    "summary": "Object to Object Replication",
+    "dri": "Manoj Dhende",
+    "commitment": "Committed",
+    "totalResources": 6.67,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "ERA-54373",
+    "feat": "ERA-54373",
+    "summary": "Objects Lite Integration",
+    "dri": "Manoj Dhende",
+    "commitment": "Committed",
+    "totalResources": 6.67,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "ERA-31655",
+    "feat": "ERA-31655",
+    "summary": "Objects Connection Management",
+    "dri": "Manoj Dhende",
+    "commitment": "Committed",
+    "totalResources": 3.33,
+    "sizingLabel": "L (5-8 months)",
+    "durationMonths": 8
+  },
+  {
+    "id": "ERA-37117",
+    "feat": "ERA-37117",
+    "summary": "Leaf Node Project (Move log bakcups schedule to dbserver node)",
+    "dri": "Aparajita Raychaudhury",
+    "commitment": "Approved",
+    "totalResources": 6.67,
+    "sizingLabel": "XXL (13+ months)",
+    "durationMonths": 21
+  },
+  {
+    "id": "FEAT-17279",
+    "feat": "FEAT-17279",
+    "summary": "Backup Policy",
+    "dri": "Manoj Dhende",
+    "commitment": "Approved",
+    "totalResources": 10,
+    "sizingLabel": "3L (21+ months)",
+    "durationMonths": 34
+  },
+  {
+    "id": "FEAT-17380",
+    "feat": "FEAT-17380",
+    "summary": "NDB on SMSP (Marketplace integration, Migration, LCM, DR) : P0",
+    "dri": "Rahul Khandelwal",
+    "commitment": "Committed",
+    "totalResources": 18.33,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "row-7",
+    "feat": "",
+    "summary": "Cloud init (remove ODP) + Collect Logs without ODP + Mandate",
+    "dri": "Sandeep Sudheendra",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "ERA-38582",
+    "feat": "ERA-38582",
+    "summary": "Project Hermes",
+    "dri": "Yashesh Mankad",
+    "commitment": "Committed",
+    "totalResources": 11.67,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "FEAT-18200",
+    "feat": "FEAT-18200",
+    "summary": "DB in Containers - GA [Milestone1: Provisioning, scale- veritical/horizontal/storage, Patching,",
+    "dri": "Aleksandar Tanasijevic",
+    "commitment": "Committed",
+    "totalResources": 23.33,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "FEAT-18200",
+    "feat": "FEAT-18200",
+    "summary": "DB in Containers - GA [Milestone 2: Time Machine]",
+    "dri": "Deepak Srinath",
+    "commitment": "Committed",
+    "totalResources": 23.33,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "row-11",
+    "feat": "",
+    "summary": "Service Monitoring infra + service health alerting + Marketplace health status",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "M (3-5 months)",
+    "durationMonths": 5
+  },
+  {
+    "id": "row-12",
+    "feat": "",
+    "summary": "DB on containers data plane log management/collection",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 6.67,
+    "sizingLabel": "L (5-8 months)",
+    "durationMonths": 8
+  },
+  {
+    "id": "ERA-43142",
+    "feat": "ERA-43142",
+    "summary": "SMSP log management + Diag bundle collection",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "M (3-5 months)",
+    "durationMonths": 5
+  },
+  {
+    "id": "row-14",
+    "feat": "",
+    "summary": "Tracing framework for instrumentation from new services in SMSP",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 3.33,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "row-15",
+    "feat": "",
+    "summary": "Collection of metrics diagnostic bundle",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 3.33,
+    "sizingLabel": "XS (1 month)",
+    "durationMonths": 1
+  },
+  {
+    "id": "row-16",
+    "feat": "",
+    "summary": "Librarary for business telemetry via Pulse/CFS",
+    "dri": "Boban Petković",
+    "commitment": "Committed",
+    "totalResources": 3.33,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "Go Based WFs \n(Services Onboarding)\n\n~8 people/3 months\nPhase 1: Data plane rewrite",
+    "feat": "Go Based WFs \n(Services Onboarding)\n\n~8 people/3 months\nPhase 1: Data plane rewrite",
+    "summary": "Go Based WFs (OS Service)",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "row-18",
+    "feat": "",
+    "summary": "Go Based WFs (DB Service)",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "row-19",
+    "feat": "",
+    "summary": "Go Based WFs (DB LCM Service)",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "row-20",
+    "feat": "",
+    "summary": "Go Based WFs (TM Service)",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3
+  },
+  {
+    "id": "Go Based WF\n(Workflow Migration - MySQL)\nPhase 2:\n~18 people/10 months",
+    "feat": "Go Based WF\n(Workflow Migration - MySQL)\nPhase 2:\n~18 people/10 months",
+    "summary": "Software Profile Creation - ECDR Based",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "row-22",
+    "feat": "",
+    "summary": "Snapshot (ECDR)",
+    "dri": "Omkar Pradeep Salvi",
+    "commitment": "Committed",
+    "totalResources": 5,
+    "sizingLabel": "L (5-8 months)",
+    "durationMonths": 8
+  },
+  {
+    "id": "row-23",
+    "feat": "",
+    "summary": "AOS auto curation of snapshots",
+    "dri": "Aleksandar Minic",
+    "commitment": "Committed",
+    "totalResources": 6.67,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  },
+  {
+    "id": "IAMv2",
+    "feat": "IAMv2",
+    "summary": "IAMv2 - User onboarding (Login, EULA , Password reset UX etc)",
+    "dri": "",
+    "commitment": "Committed",
+    "totalResources": 11.67,
+    "sizingLabel": "M (3-5 months)",
+    "durationMonths": 5
+  },
+  {
+    "id": "row-25",
+    "feat": "",
+    "summary": "Error Code Framework",
+    "dri": "",
+    "commitment": "Committed",
+    "totalResources": 1,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13
+  }
+]
