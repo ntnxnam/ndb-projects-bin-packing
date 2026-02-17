@@ -15,7 +15,7 @@ export const SIZING_MONTHS = {
 };
 
 export function durationMonths(project) {
-  return project.durationMonths ?? SIZING_MONTHS[project.sizingLabel] ?? 0;
+  return project.durationMonths ?? 0;
 }
 
 export function totalResources(project) {

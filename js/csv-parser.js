@@ -1,21 +1,9 @@
-#!/usr/bin/env node
 /**
- * Prepares project data from the prioritization CSV (Sheet1).
- * Outputs data/projects.json with rows that have sizing + Committed/Approved.
- * People allocated (FTE) = Column J "Dev Resources required for max parallization".
- *
- * Usage: node scripts/prepare-data.js [path/to/Sheet1.csv]
- * Default CSV path: ../data/sheet1.csv (place export there first).
+ * Parse prioritization CSV (same columns as Sheet1 / prepare-data.js).
+ * Used by the Upload CSV tab to refresh project data without changing column expectations.
  */
 
-const fs = require('fs');
-const path = require('path');
-
-const CSV_PATH = process.argv[2] || path.join(__dirname, '../data/sheet1.csv');
-const OUT_PATH = path.join(__dirname, '../data/projects.json');
-
-// Sizing label → "up to" months (for bar length).
-const SIZING_MONTHS = {
+export const SIZING_MONTHS = {
   'None': 0,
   'XS (1 month)': 1,
   'S (1-3 months)': 3,
@@ -27,7 +15,7 @@ const SIZING_MONTHS = {
   '4L (34+ months)': 55,
 };
 
-function parseCSV(text) {
+export function parseCSV(text) {
   const rows = [];
   let i = 0;
   const len = text.length;
@@ -79,29 +67,55 @@ function parseCSV(text) {
   return rows;
 }
 
-function main() {
-  let csvText;
-  try {
-    csvText = fs.readFileSync(CSV_PATH, 'utf8');
-  } catch (e) {
-    console.error('Could not read CSV at', CSV_PATH);
-    process.exit(1);
+/**
+ * Parse "Dependency Numbers (Comma Separated List)".
+ * Numbers are Sl No. Only mark as dev-blocker when the number is directly followed by "(dev-blocker)" in the same segment.
+ * e.g. "33 (dev-blocker)" -> 33 is dev-blocker; "2" -> 2 is not.
+ */
+function parseDependencyNumbersAndBlockers(raw) {
+  if (!raw || typeof raw !== 'string') return { rowNumbers: [], devBlockers: [] };
+  const rowNumbers = [];
+  const devBlockers = [];
+  const parts = raw.split(/[,;]/);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    const numMatch = trimmed.match(/\d+/);
+    if (numMatch) {
+      const num = parseInt(numMatch[0], 10);
+      rowNumbers.push(num);
+      if (/\d+\s*\(\s*dev-blocker\s*\)/i.test(trimmed)) devBlockers.push(num);
+    }
   }
+  return {
+    rowNumbers: [...new Set(rowNumbers)],
+    devBlockers: [...new Set(devBlockers)],
+  };
+}
 
+/**
+ * Convert CSV text (header + data rows) to projects array.
+ * No rows are omitted: all data rows are included regardless of commitment, sizing, or summary.
+ */
+export function csvToProjects(csvText) {
   const rows = parseCSV(csvText);
   const header = rows[0];
   const dataRows = rows.slice(1);
+
+  if (!header || !dataRows.length) return { projects: [], error: 'CSV has no header or data rows.' };
 
   const idx = (name) => {
     const n = (name || '').trim();
     const i = header.findIndex(h => (h || '').trim() === n);
     return i >= 0 ? i : -1;
   };
-
-  const iSlNo = idx('Sl No') >= 0 ? idx('Sl No') : idx('Sl. No');
+  const idxContains = (sub) => header.findIndex(h => (h || '').trim().indexOf(sub) !== -1);
+  const iSlNo = idx('Sl No') >= 0 ? idx('Sl No') : idx('Sl. No') >= 0 ? idx('Sl. No') : idxContains('Sl No');
   const iFirstCol = iSlNo >= 0 ? iSlNo : 0;
-  const iFeat = idx('FEAT NUMBER');
-  const iSummary = idx('SUMMARY');
+  const iFeat = idx('FEAT NUMBER') >= 0 ? idx('FEAT NUMBER') : idxContains('FEAT NUMBER');
+  const iSummary = idx('SUMMARY') >= 0 ? idx('SUMMARY') : idxContains('SUMMARY');
+  if (iFeat < 0 || iSummary < 0) {
+    return { projects: [], error: 'CSV must include "FEAT NUMBER" and "SUMMARY" columns. Check the header row.' };
+  }
   const iPriority = idx('Priority');
   const iStatus = idx('STATUS');
   const iCommit = idx('3.0 Commitment Status');
@@ -109,33 +123,13 @@ function main() {
   const iSizing = idx('sizing (refer sheet 2 for guidance)');
   const iDri = idx('DRI');
   const iDependencyNumbers = idx('Dependency Numbers (Comma Separated List)');
-  const iTotalPersonMonths = idx('Total Months Needed for 1 person by Dev (Everything from start to finish)');
+  const iTotalPersonMonths = header.findIndex(h => (h || '').trim().indexOf('Total Months Needed for 1 person by Dev') === 0);
   const iNumberMonthsDev = idx('Number of Months (Dev)');
-  const iQAResources = header.findIndex(h => {
-    const t = (h || '').trim();
-    return t.indexOf('Num of QA required') !== -1 && t.indexOf('60% productivity') === -1;
-  });
-
-  /** Parse dependency list. Only mark as dev-blocker when the number is directly followed by "(dev-blocker)" in the same segment (e.g. "33 (dev-blocker)" yes, "2" no). */
-  function parseDependencyNumbersAndBlockers(raw) {
-    if (!raw || typeof raw !== 'string') return { rowNumbers: [], devBlockers: [] };
-    const rowNumbers = [];
-    const devBlockers = [];
-    const parts = raw.split(/[,;]/);
-    for (const part of parts) {
-      const trimmed = part.trim();
-      const numMatch = trimmed.match(/\d+/);
-      if (numMatch) {
-        const num = parseInt(numMatch[0], 10);
-        rowNumbers.push(num);
-        if (/\d+\s*\(\s*dev-blocker\s*\)/i.test(trimmed)) devBlockers.push(num);
-      }
-    }
-    return {
-      rowNumbers: [...new Set(rowNumbers)],
-      devBlockers: [...new Set(devBlockers)],
-    };
-  }
+  const iTotalPersonMonthsByName = idx('Total Months Needed for 1 person by Dev (Everything from start to finish)');
+  const _totalPersonMonthsCol = iTotalPersonMonthsByName >= 0 ? iTotalPersonMonthsByName : iTotalPersonMonths;
+  const iQAResources = header.findIndex(h => (h || '').trim().indexOf('Num of QA required') === 0);
+  const iAdditionalResources = idx('Additional Resources');
+  const iSizingComment = idx('Sizing Comment');
 
   const projects = [];
 
@@ -153,14 +147,22 @@ function main() {
     const dri = (row[iDri] || '').trim();
     const priority = (row[iPriority] || '').trim();
     const status = iStatus >= 0 ? (row[iStatus] || '').trim() : '';
-    const inProgress = /in\s*progress/i.test(status);
 
     const rowNumRaw = (row[iFirstCol] || '').trim();
     const rowNumber = rowNumRaw && !Number.isNaN(parseInt(rowNumRaw, 10)) ? parseInt(rowNumRaw, 10) : null;
     const assignedRowNumber = rowNumber != null ? rowNumber : 9000 + projects.length;
     const { rowNumbers: dependencyRowNumbers, devBlockers: dependencyDevBlockers } = parseDependencyNumbersAndBlockers(row[iDependencyNumbers]);
 
-    const totalPersonMonthsRaw = iTotalPersonMonths >= 0 ? (row[iTotalPersonMonths] || '').trim() : '';
+    const totalPersonMonthsRaw = _totalPersonMonthsCol >= 0 ? (row[_totalPersonMonthsCol] || '').trim() : '';
+    const additionalResources = iAdditionalResources >= 0 ? (row[iAdditionalResources] || '').trim() : '';
+    const sizingComment = iSizingComment >= 0 ? (row[iSizingComment] || '').trim() : '';
+
+    let qaResources = iQAResources >= 0 && row[iQAResources] ? parseFloat(String(row[iQAResources]).replace(/,/g, '')) : NaN;
+    if (Number.isNaN(qaResources) || qaResources < 0) {
+      qaResources = null;
+    } else {
+      qaResources = Math.round(qaResources * 100) / 100;
+    }
 
     /* Duration priority:
        1. "Number of Months (Dev)" — explicit calculated duration
@@ -181,12 +183,7 @@ function main() {
       durationMonths = 0;
     }
 
-    let qaResources = iQAResources >= 0 && row[iQAResources] ? parseFloat(String(row[iQAResources]).replace(/,/g, '')) : NaN;
-    if (Number.isNaN(qaResources) || qaResources < 0) {
-      qaResources = null;
-    } else {
-      qaResources = Math.round(qaResources * 100) / 100;
-    }
+    const inProgress = /in\s*progress/i.test(status);
 
     projects.push({
       id: `row-${assignedRowNumber}`,
@@ -204,20 +201,42 @@ function main() {
       durationMonths,
       dependencyRowNumbers,
       dependencyDevBlockers: dependencyDevBlockers || [],
+      totalPersonMonths: totalPersonMonthsRaw,
+      additionalResources,
+      sizingComment,
     });
   }
 
-  /* Detect resource groups (two strategies):
-     1. Feat-capacity: FEAT column contains "~N people/M months". Subsequent empty-feat rows are children.
-     2. Summary-prefix: IAMv2-style — parent has totalResources > 0, children have 0, shared summary prefix. */
+  detectResourceGroups(projects);
+  return { projects, error: null };
+}
+
+/**
+ * Detect resource groups using two complementary strategies:
+ *
+ * Strategy 1 — Feat-capacity groups:
+ *   The FEAT column contains "~N people/M months" (e.g. "Go Based WF Phase 2: ~18 people/10 months").
+ *   The parent row's totalResources and durationMonths are overridden with the parsed N and M.
+ *   Subsequent rows with empty feat field are children until the next non-empty feat row.
+ *
+ * Strategy 2 — Summary-prefix groups:
+ *   Multiple projects share a summary prefix (text before " - ").
+ *   Exactly one has totalResources > 0 (parent), the rest have totalResources = 0 (children).
+ *   Example: "IAMv2 - User onboarding" (parent) + "IAMv2 - Session mgmt" (child).
+ *
+ * Children share the parent's FTE pool — they don't consume additional org capacity.
+ * Mutates projects in place, adding resourceGroup* fields.
+ */
+export function detectResourceGroups(projects) {
   const grouped = new Set();
 
-  /* Strategy 1: feat-capacity groups */
+  /* --- Strategy 1: feat-capacity groups ("~N people/M months" in feat column) --- */
   for (let i = 0; i < projects.length; i++) {
     const p = projects[i];
     if (grouped.has(p.rowNumber)) continue;
     const match = (p.feat || '').match(/~(\d+)\s*people\s*\/\s*(\d+)\s*months/i);
     if (!match) continue;
+
     const groupFte = parseInt(match[1], 10);
     const groupDuration = parseInt(match[2], 10);
     const parentDri = (p.dri || '').trim().toLowerCase();
@@ -230,6 +249,7 @@ function main() {
       j++;
     }
     if (children.length === 0) continue;
+
     const groupId = `feat-group-${p.rowNumber}`;
     p.resourceGroupId = groupId;
     p.totalResources = groupFte;
@@ -237,6 +257,7 @@ function main() {
     p.resourceGroupChildRows = children.map(c => c.rowNumber);
     p.resourceGroupCapacityNote = `~${groupFte} people/${groupDuration} months (from FEAT column)`;
     grouped.add(p.rowNumber);
+
     for (const child of children) {
       child.resourceGroupId = groupId;
       child.isResourceGroupChild = true;
@@ -245,11 +266,12 @@ function main() {
     }
   }
 
-  /* Strategy 2: summary-prefix groups */
+  /* --- Strategy 2: summary-prefix groups (IAMv2-style) --- */
   const prefixOf = (summary) => {
     const idx = summary.indexOf(' - ');
     return idx >= 0 ? summary.slice(0, idx).trim() : null;
   };
+
   const byPrefix = new Map();
   for (const p of projects) {
     if (grouped.has(p.rowNumber)) continue;
@@ -258,17 +280,21 @@ function main() {
     if (!byPrefix.has(prefix)) byPrefix.set(prefix, []);
     byPrefix.get(prefix).push(p);
   }
+
   for (const [prefix, members] of byPrefix) {
     if (members.length < 2) continue;
     const parents = members.filter(p => p.totalResources > 0);
     const children = members.filter(p => p.totalResources <= 0);
     if (parents.length !== 1 || children.length === 0) continue;
+
     const parent = parents[0];
     const groupId = `group-${parent.rowNumber}`;
     const childRowNumbers = children.map(c => c.rowNumber);
+
     parent.resourceGroupId = groupId;
     parent.resourceGroupChildRows = childRowNumbers;
     grouped.add(parent.rowNumber);
+
     for (const child of children) {
       child.resourceGroupId = groupId;
       child.isResourceGroupChild = true;
@@ -276,11 +302,4 @@ function main() {
       grouped.add(child.rowNumber);
     }
   }
-
-  const outDir = path.dirname(OUT_PATH);
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(OUT_PATH, JSON.stringify(projects, null, 2), 'utf8');
-  console.log('Wrote', projects.length, 'projects to', OUT_PATH);
 }
-
-main();

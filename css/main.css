@@ -38,6 +38,8 @@ h1 {
 
 /* Controls */
 .controls {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
@@ -63,6 +65,7 @@ h1 {
 }
 
 .control-group input {
+  min-width: 4rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -88,6 +91,142 @@ h1 {
 }
 
 /* Mode selector */
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* Upload CSV */
+.upload-section {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.upload-desc {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.upload-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.upload-controls input[type="file"] {
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.upload-status {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.upload-status.success {
+  color: #3fb950;
+}
+
+.upload-status.error {
+  color: #f85149;
+}
+
+.upload-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.upload-submit-hint {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.upload-table-wrap {
+  margin-top: 1.5rem;
+}
+
+.upload-table-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.upload-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.verify-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.verify-table th,
+.verify-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.verify-table th {
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.verify-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.verify-table td:nth-child(1) { width: 2.5rem; }
+.verify-table td:nth-child(2) { width: 3rem; white-space: nowrap; }
+.verify-table td:nth-child(3) { white-space: nowrap; }
+.verify-table td:nth-child(4) { max-width: 20rem; }
+.verify-table td:nth-child(5),
+.verify-table td:nth-child(6),
+.verify-table td:nth-child(7) { text-align: right; }
+
 .mode-selector {
   display: flex;
   gap: 1.5rem;
@@ -111,6 +250,32 @@ h1 {
   flex-wrap: wrap;
   gap: 1rem;
   align-items: flex-end;
+}
+
+.submit-row {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.btn-submit {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit:hover {
+  filter: brightness(1.1);
+}
+
+.submit-hint {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .mode-summary {
@@ -178,6 +343,29 @@ h1 {
   min-height: 200px;
 }
 
+#ganttChart {
+  position: relative;
+}
+
+.gantt-grid {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gantt-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--border);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .gantt-axis {
   position: relative;
   height: 28px;
@@ -194,6 +382,7 @@ h1 {
 
 .gantt-track {
   position: relative;
+  z-index: 1;
   /* Height set in JS to fit all bars stacked vertically */
   min-height: 200px;
 }
@@ -215,6 +404,24 @@ h1 {
   z-index: 2;
 }
 
+/* In-progress: already underway, 50% remaining — amber/orange */
+.gantt-bar--in-progress {
+  background: #d29922;
+}
+
+.gantt-bar--in-progress:hover {
+  background: #e3b341;
+}
+
+/* Rotated FTEs: people freed from completed projects and reassigned */
+.gantt-bar--rotated {
+  background: #1f6feb;
+}
+
+.gantt-bar--rotated:hover {
+  background: #388bfd;
+}
+
 .gantt-bar-label {
   font-size: 0.75rem;
   white-space: nowrap;
@@ -234,11 +441,99 @@ h1 {
   margin-right: 1rem;
 }
 
+.color-legend {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.color-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.color-swatch--fresh { background: var(--bar); }
+.color-swatch--in-progress { background: #d29922; }
+.color-swatch--rotated { background: #1f6feb; }
+.color-swatch--group-parent { background: #3fb950; border: 2px solid rgba(255,255,255,0.5); }
+.color-swatch--group-child { background: rgba(130, 160, 200, 0.55); border-left: 3px solid rgba(100, 140, 200, 0.8); }
+
 .capacity-note {
   margin-top: 0.5rem;
   font-size: 0.75rem;
   color: var(--muted);
   font-style: italic;
+}
+
+/* Long poles & Consider dropping */
+.insight-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.insight-section h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.insight-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.insight-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.insight-list li {
+  margin-bottom: 0.35rem;
+}
+
+.gantt-bar-balance {
+  font-weight: 700;
+  opacity: 0.85;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-right: 3px;
+}
+
+/* Resource group parent: subtle border to indicate it contains sub-projects */
+.gantt-bar--group-parent {
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Resource group child: thinner, indented, muted color */
+.gantt-bar--group-child {
+  background: rgba(130, 160, 200, 0.55) !important;
+  border-left: 3px solid rgba(100, 140, 200, 0.8);
+  opacity: 0.85;
+  margin-left: 12px;
+  font-size: 0.7rem;
 }
 
 .loading, .error {

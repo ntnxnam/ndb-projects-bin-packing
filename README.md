@@ -20,18 +20,20 @@ Schedule NDB 3.0 work items by **duration** (largest first) with optional **FTE 
 
 ## Run locally
 
-Data is loaded from `data/projects.json`, so the app must be served (no `file://`). The app always runs on **port 3000** so the URL stays consistent when you relaunch.
+Data is loaded from `data/projects.json`, so the app must be served (no `file://`). The app always runs on **port 3847** so the URL stays consistent when you relaunch.
 
 ```bash
-# From repo root (recommended – always uses port 3000)
+# From repo root (recommended – always uses port 3847)
+npm run ndb
+# or from this folder
 npm start
 # or
-npx serve . -l 3000
+npx serve . -l 3847
 # or
-python3 -m http.server 3000
+python3 -m http.server 3847
 ```
 
-Then open **http://localhost:3000**
+Then open **http://localhost:3847**
 
 ## Data
 
