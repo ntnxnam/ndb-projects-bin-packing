@@ -71,12 +71,55 @@ h1 {
   font-size: 0.875rem;
 }
 
-.control-group input:focus {
+.control-group input:focus,
+.control-group select:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-/* View tabs */
+.control-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  min-width: 6rem;
+}
+
+/* Mode selector */
+.mode-selector {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.mode-option input {
+  margin: 0;
+}
+
+.mode-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.mode-summary {
+  font-size: 0.9rem;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+/* Legacy view tabs (kept for any refs) */
 .views {
   display: flex;
   gap: 0.5rem;
@@ -101,6 +144,17 @@ h1 {
 
 .views button:hover:not(.active) {
   background: var(--border);
+}
+
+.view-explainer {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.4;
+}
+
+.view-explainer strong {
+  color: var(--text);
 }
 
 /* Gantt container */
@@ -140,13 +194,12 @@ h1 {
 
 .gantt-track {
   position: relative;
-  height: 100%;
-  min-height: 400px;
+  /* Height set in JS to fit all bars stacked vertically */
+  min-height: 200px;
 }
 
 .gantt-bar {
   position: absolute;
-  top: 2px;
   min-width: 4px;
   background: var(--bar);
   border-radius: 4px;
@@ -179,6 +232,13 @@ h1 {
 
 .legend span {
   margin-right: 1rem;
+}
+
+.capacity-note {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
 }
 
 .loading, .error {

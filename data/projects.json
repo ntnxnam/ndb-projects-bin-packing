@@ -4,249 +4,463 @@
     "feat": "FEAT-17977",
     "summary": "Object to Object Replication",
     "dri": "Manoj Dhende",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 6.67,
+    "totalResources": 3,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 1,
+    "dependencyRowNumbers": []
   },
   {
     "id": "ERA-54373",
     "feat": "ERA-54373",
     "summary": "Objects Lite Integration",
     "dri": "Manoj Dhende",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 6.67,
+    "totalResources": 3,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 2,
+    "dependencyRowNumbers": []
   },
   {
     "id": "ERA-31655",
     "feat": "ERA-31655",
     "summary": "Objects Connection Management",
     "dri": "Manoj Dhende",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 3.33,
+    "totalResources": 1,
     "sizingLabel": "L (5-8 months)",
-    "durationMonths": 8
+    "durationMonths": 8,
+    "rowNumber": 3,
+    "dependencyRowNumbers": []
   },
   {
     "id": "ERA-37117",
     "feat": "ERA-37117",
     "summary": "Leaf Node Project (Move log bakcups schedule to dbserver node)",
     "dri": "Aparajita Raychaudhury",
+    "priority": "P0",
     "commitment": "Approved",
-    "totalResources": 6.67,
+    "totalResources": 3,
     "sizingLabel": "XXL (13+ months)",
-    "durationMonths": 21
+    "durationMonths": 21,
+    "rowNumber": 4,
+    "dependencyRowNumbers": [
+      37
+    ]
   },
   {
     "id": "FEAT-17279",
     "feat": "FEAT-17279",
     "summary": "Backup Policy",
     "dri": "Manoj Dhende",
+    "priority": "P0",
     "commitment": "Approved",
-    "totalResources": 10,
+    "totalResources": 4,
     "sizingLabel": "3L (21+ months)",
-    "durationMonths": 34
+    "durationMonths": 34,
+    "rowNumber": 5,
+    "dependencyRowNumbers": [
+      2
+    ]
   },
   {
     "id": "FEAT-17380",
     "feat": "FEAT-17380",
     "summary": "NDB on SMSP (Marketplace integration, Migration, LCM, DR) : P0",
     "dri": "Rahul Khandelwal",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 18.33,
+    "totalResources": 8,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 6,
+    "dependencyRowNumbers": [
+      2
+    ]
   },
   {
     "id": "row-7",
     "feat": "",
     "summary": "Cloud init (remove ODP) + Collect Logs without ODP + Mandate",
     "dri": "Sandeep Sudheendra",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 7,
+    "dependencyRowNumbers": []
   },
   {
     "id": "ERA-38582",
     "feat": "ERA-38582",
     "summary": "Project Hermes",
     "dri": "Yashesh Mankad",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 11.67,
+    "totalResources": 5,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 8,
+    "dependencyRowNumbers": [
+      6,
+      27
+    ]
   },
   {
     "id": "FEAT-18200",
     "feat": "FEAT-18200",
     "summary": "DB in Containers - GA [Milestone1: Provisioning, scale- veritical/horizontal/storage, Patching,",
     "dri": "Aleksandar Tanasijevic",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 23.33,
+    "totalResources": 10,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 9,
+    "dependencyRowNumbers": [
+      6,
+      8,
+      27,
+      28,
+      29,
+      30,
+      60,
+      61,
+      62,
+      63,
+      31,
+      32
+    ]
   },
   {
     "id": "FEAT-18200",
     "feat": "FEAT-18200",
     "summary": "DB in Containers - GA [Milestone 2: Time Machine]",
     "dri": "Deepak Srinath",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 23.33,
+    "totalResources": 10,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 26,
+    "dependencyRowNumbers": [
+      26
+    ]
   },
   {
-    "id": "row-11",
+    "id": "row-27",
     "feat": "",
     "summary": "Service Monitoring infra + service health alerting + Marketplace health status",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "M (3-5 months)",
-    "durationMonths": 5
+    "durationMonths": 5,
+    "rowNumber": 27,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-12",
+    "id": "row-28",
     "feat": "",
     "summary": "DB on containers data plane log management/collection",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 6.67,
+    "totalResources": 3,
     "sizingLabel": "L (5-8 months)",
-    "durationMonths": 8
+    "durationMonths": 8,
+    "rowNumber": 28,
+    "dependencyRowNumbers": []
   },
   {
     "id": "ERA-43142",
     "feat": "ERA-43142",
     "summary": "SMSP log management + Diag bundle collection",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "M (3-5 months)",
-    "durationMonths": 5
+    "durationMonths": 5,
+    "rowNumber": 29,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-14",
+    "id": "row-30",
     "feat": "",
     "summary": "Tracing framework for instrumentation from new services in SMSP",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 3.33,
+    "totalResources": 1,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 30,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-15",
+    "id": "row-31",
     "feat": "",
     "summary": "Collection of metrics diagnostic bundle",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 3.33,
+    "totalResources": 1,
     "sizingLabel": "XS (1 month)",
-    "durationMonths": 1
+    "durationMonths": 1,
+    "rowNumber": 31,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-16",
+    "id": "row-32",
     "feat": "",
     "summary": "Librarary for business telemetry via Pulse/CFS",
     "dri": "Boban Petković",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 3.33,
+    "totalResources": 1,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 32,
+    "dependencyRowNumbers": []
   },
   {
     "id": "Go Based WFs \n(Services Onboarding)\n\n~8 people/3 months\nPhase 1: Data plane rewrite",
     "feat": "Go Based WFs \n(Services Onboarding)\n\n~8 people/3 months\nPhase 1: Data plane rewrite",
     "summary": "Go Based WFs (OS Service)",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 33,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-18",
+    "id": "row-34",
     "feat": "",
     "summary": "Go Based WFs (DB Service)",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 34,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-19",
+    "id": "row-35",
     "feat": "",
     "summary": "Go Based WFs (DB LCM Service)",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 35,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-20",
+    "id": "row-36",
     "feat": "",
     "summary": "Go Based WFs (TM Service)",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "S (1-3 months)",
-    "durationMonths": 3
+    "durationMonths": 3,
+    "rowNumber": 36,
+    "dependencyRowNumbers": []
   },
   {
     "id": "Go Based WF\n(Workflow Migration - MySQL)\nPhase 2:\n~18 people/10 months",
     "feat": "Go Based WF\n(Workflow Migration - MySQL)\nPhase 2:\n~18 people/10 months",
     "summary": "Software Profile Creation - ECDR Based",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 41,
+    "dependencyRowNumbers": [
+      33,
+      34,
+      35,
+      36
+    ]
   },
   {
-    "id": "row-22",
+    "id": "row-49",
     "feat": "",
     "summary": "Snapshot (ECDR)",
     "dri": "Omkar Pradeep Salvi",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 5,
+    "totalResources": 2,
     "sizingLabel": "L (5-8 months)",
-    "durationMonths": 8
+    "durationMonths": 8,
+    "rowNumber": 49,
+    "dependencyRowNumbers": [
+      33,
+      34,
+      35,
+      36,
+      57
+    ]
   },
   {
-    "id": "row-23",
+    "id": "row-57",
     "feat": "",
     "summary": "AOS auto curation of snapshots",
     "dri": "Aleksandar Minic",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 6.67,
+    "totalResources": 3,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 57,
+    "dependencyRowNumbers": []
   },
   {
     "id": "IAMv2",
     "feat": "IAMv2",
     "summary": "IAMv2 - User onboarding (Login, EULA , Password reset UX etc)",
     "dri": "",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 11.67,
+    "totalResources": 5,
     "sizingLabel": "M (3-5 months)",
-    "durationMonths": 5
+    "durationMonths": 5,
+    "rowNumber": 59,
+    "dependencyRowNumbers": []
   },
   {
-    "id": "row-25",
+    "id": "row-60",
+    "feat": "",
+    "summary": "IAMv2 - Session management",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3,
+    "rowNumber": 60,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-61",
+    "feat": "",
+    "summary": "IAMv2 - Design schema (ACPs etc) in IAMv2",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3,
+    "rowNumber": 61,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-62",
+    "feat": "",
+    "summary": "IAMv2 - Framework (includes new internal authz component) use IAMv2",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "L (5-8 months)",
+    "durationMonths": 8,
+    "rowNumber": 62,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-63",
+    "feat": "",
+    "summary": "IAMv2 - RBAC migration to IAMv2(existing Users, Roles, Policies migration to IAMv2)",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "M (3-5 months)",
+    "durationMonths": 5,
+    "rowNumber": 63,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-64",
+    "feat": "",
+    "summary": "IAMv2 - Entity Sharing functional equivalency",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3,
+    "rowNumber": 64,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-65",
+    "feat": "",
+    "summary": "IAMv2 - DR/Backup of IAMv2",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3,
+    "rowNumber": 65,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-66",
+    "feat": "",
+    "summary": "IAMv2 - Scale testing",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "S (1-3 months)",
+    "durationMonths": 3,
+    "rowNumber": 66,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-67",
+    "feat": "",
+    "summary": "IAMv2 - Code refactoring (Example pattern and actual changes)",
+    "dri": "",
+    "priority": "P0",
+    "commitment": "Committed",
+    "totalResources": 0,
+    "sizingLabel": "XL (8-13 months)",
+    "durationMonths": 13,
+    "rowNumber": 67,
+    "dependencyRowNumbers": []
+  },
+  {
+    "id": "row-33",
     "feat": "",
     "summary": "Error Code Framework",
     "dri": "",
+    "priority": "P0",
     "commitment": "Committed",
-    "totalResources": 1,
+    "totalResources": 0,
     "sizingLabel": "XL (8-13 months)",
-    "durationMonths": 13
+    "durationMonths": 13,
+    "rowNumber": 33,
+    "dependencyRowNumbers": []
   }
 ]

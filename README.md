@@ -6,28 +6,32 @@ Schedule NDB 3.0 work items by **duration** (largest first) with optional **FTE 
 
 - **Two views**
   - **Sequential:** Projects sorted by duration (largest first); each bar starts when the previous one ends.
-  - **Capacity-based:** Same order, but projects are placed in time so that total FTE in any month does not exceed the configured capacity (parallel work where headcount allows).
+  - **Capacity-based:** Same order, but projects are placed in time so that total people allocated in any month does not exceed the configured capacity (parallel work where headcount allows).
 
 - **Visual encoding**
   - **Bar length** = duration (months, from sizing “up to”).
-  - **Bar thickness** = total resources (FTE).
+  - **Bar thickness** = people allocated to that project (1 = no parallelization, &gt;1 = team chose to parallelize within the project).
 
 - **Controls**
   - **Start date / End date** – timeline window (default: 01 Apr 2026 – 30 Jan 2027).
-  - **Total people (FTE capacity)** – max FTE per month for the capacity view; changing it repacks the capacity Gantt.
+  - **Number of FTEs** – headcount (people).
+  - **Capacity per FTE (%)** – share of each person’s time on this work (e.g. 60 = 60%); effective capacity = FTEs × capacity %.
+  - **Priority** – filter by P0, P1, or All; bin packing runs only on the selected priority.
 
 ## Run locally
 
-Data is loaded from `data/projects.json`, so the app must be served (no `file://`).
+Data is loaded from `data/projects.json`, so the app must be served (no `file://`). The app always runs on **port 3000** so the URL stays consistent when you relaunch.
 
 ```bash
-# From repo root
-npx serve .
+# From repo root (recommended – always uses port 3000)
+npm start
 # or
-python3 -m http.server 8080
+npx serve . -l 3000
+# or
+python3 -m http.server 3000
 ```
 
-Then open `http://localhost:3000` (or `http://localhost:8080`).
+Then open **http://localhost:3000**
 
 ## Data
 

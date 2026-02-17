@@ -1,6 +1,6 @@
 /**
- * Renders a Gantt chart: bar length = duration, bar thickness = FTE.
- * Expects a packed schedule (array of { project, startDate, endDate }) and timeline bounds.
+ * Renders a Gantt chart: bar length = duration, bar thickness = people allocated.
+ * (1 = no parallelization, >1 = team chose to parallelize within the project.)
  */
 
 import { totalResources } from './sizing.js';
@@ -48,7 +48,8 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     bar.style.width = `${Math.min(100 - left, width)}%`;
     bar.style.height = `${height}px`;
     bar.style.top = `${topOffset}px`;
-    bar.title = `${project.summary}\n${project.feat || ''} · ${project.durationMonths} mo · ${totalResources(project).toFixed(1)} FTE`;
+    const people = totalResources(project);
+bar.title = `${project.summary}\n${project.feat || ''} · ${project.durationMonths} mo · ${people.toFixed(1)} people allocated${people <= 1 ? ' (no parallelization)' : ' (parallelization chosen)'}`;
     bar.dataset.fte = totalResources(project).toFixed(1);
 
     const label = document.createElement('span');
@@ -60,7 +61,8 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     topOffset += height + rowGap;
   }
 
-  track.style.minHeight = `${topOffset}px`;
+  track.style.height = `${topOffset}px`;
+  track.style.minHeight = `${Math.max(topOffset, 200)}px`;
   container.appendChild(track);
 }
 

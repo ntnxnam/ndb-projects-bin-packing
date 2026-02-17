@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Prepares project data from the prioritization CSV (Sheet1).
- * Outputs data/projects.json with rows that have sizing + total resources + Committed/Approved.
+ * Outputs data/projects.json with rows that have sizing + Committed/Approved.
+ * People allocated (FTE) = Column J "Dev Resources required for max parallization".
  *
  * Usage: node scripts/prepare-data.js [path/to/Sheet1.csv]
  * Default CSV path: ../data/sheet1.csv (place export there first).
@@ -97,12 +98,27 @@ function main() {
     return i >= 0 ? i : -1;
   };
 
+  const iFirstCol = 0;
   const iFeat = idx('FEAT NUMBER');
   const iSummary = idx('SUMMARY');
+  const iPriority = idx('Priority');
   const iCommit = idx('3.0 Commitment Status');
-  const iTotalRes = idx('Total resources required');
+  const iDevResources = idx('Dev Resources required for max parallization');
   const iSizing = idx('sizing (refer sheet 2 for guidance)');
   const iDri = idx('DRI');
+  const iDependencyNumbers = idx('Dependency Numbers (Comma Separated List)');
+
+  /** Parse "37(Dev-blocker)", "2", "6, 27" -> [37, 2] or [6, 27]. */
+  function parseDependencyNumbers(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    const out = [];
+    const parts = raw.split(/[,;]/);
+    for (const part of parts) {
+      const match = part.trim().match(/\d+/);
+      if (match) out.push(parseInt(match[0], 10));
+    }
+    return [...new Set(out)];
+  }
 
   const included = new Set(['Committed', 'Approved']);
   const projects = [];
@@ -115,24 +131,32 @@ function main() {
     const months = SIZING_MONTHS[sizingRaw];
     if (months === undefined) continue;
 
-    let totalRes = parseFloat(String(row[iTotalRes] || '').replace(/,/g, ''));
-    if (Number.isNaN(totalRes) || totalRes <= 0) continue;
+    let devResources = parseFloat(String(row[iDevResources] || '').replace(/,/g, ''));
+    if (Number.isNaN(devResources) || devResources < 0) devResources = 0;
 
     const feat = (row[iFeat] || '').trim();
     const summary = (row[iSummary] || '').trim().replace(/\s+/g, ' ');
     const dri = (row[iDri] || '').trim();
+    const priority = (row[iPriority] || '').trim();
 
     if (!summary) continue;
 
+    const rowNumRaw = (row[iFirstCol] || '').trim();
+    const rowNumber = rowNumRaw ? parseInt(rowNumRaw, 10) : projects.length + 1;
+    const dependencyRowNumbers = parseDependencyNumbers(row[iDependencyNumbers]);
+
     projects.push({
-      id: feat || `row-${projects.length + 1}`,
+      id: feat || `row-${rowNumber}`,
       feat: feat || '',
       summary: summary.slice(0, 120),
       dri,
+      priority: priority || 'P0',
       commitment,
-      totalResources: Math.round(totalRes * 100) / 100,
+      totalResources: Math.round(devResources * 100) / 100,
       sizingLabel: sizingRaw,
       durationMonths: months,
+      rowNumber: Number.isNaN(rowNumber) ? projects.length + 1 : rowNumber,
+      dependencyRowNumbers,
     });
   }
 

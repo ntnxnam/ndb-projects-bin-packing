@@ -10,50 +10,75 @@
   <div class="app">
     <h1>NDB 3.0 – Project bin packing</h1>
 
+    <div class="mode-selector">
+      <label class="mode-option">
+        <input type="radio" name="mode" value="fixedFTE" checked>
+        <span>1. Fixed FTEs, fluid timeline</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="mode" value="fixedTimeline">
+        <span>2. Fixed timeline, fluid FTEs</span>
+      </label>
+    </div>
+
     <div class="controls">
-      <div class="control-group">
-        <label for="startDate">Start date</label>
-        <input type="date" id="startDate" value="2026-04-01">
+      <div id="mode1Controls" class="mode-controls">
+        <div class="control-group">
+          <label for="numFTEs">Number of FTEs</label>
+          <input type="number" id="numFTEs" min="1" max="500" value="100" step="1" title="Headcount (people)">
+        </div>
+        <div class="control-group">
+          <label for="capacityPerFte">Capacity per FTE (%)</label>
+          <input type="number" id="capacityPerFte" min="1" max="100" value="100" step="1" title="100 = 100%">
+        </div>
+        <div class="control-group">
+          <label for="startDate1">Start date</label>
+          <input type="date" id="startDate1" value="2026-04-01">
+        </div>
+      </div>
+      <div id="mode2Controls" class="mode-controls" style="display: none;">
+        <div class="control-group">
+          <label for="startDate2">Start date</label>
+          <input type="date" id="startDate2" value="2026-04-01">
+        </div>
+        <div class="control-group">
+          <label for="endDate2">End date</label>
+          <input type="date" id="endDate2" value="2027-01-30">
+        </div>
       </div>
       <div class="control-group">
-        <label for="endDate">End date</label>
-        <input type="date" id="endDate" value="2027-01-30">
+        <label for="commitment">3.0 Commitment Status</label>
+        <select id="commitment">
+          <option value="">All</option>
+          <option value="Committed" selected>Committed</option>
+          <option value="Approved">Approved</option>
+        </select>
       </div>
       <div class="control-group">
-        <label for="capacity">Total people (FTE capacity)</label>
-        <input type="number" id="capacity" min="1" max="200" value="80" step="1">
+        <label for="priority">Priority</label>
+        <select id="priority">
+          <option value="">All</option>
+          <option value="P0" selected>P0</option>
+          <option value="P1">P1</option>
+        </select>
       </div>
     </div>
 
-    <div class="views">
-      <button type="button" data-view="both" class="active">Both views</button>
-      <button type="button" data-view="sequential">Sequential only</button>
-      <button type="button" data-view="capacity">Capacity only</button>
-    </div>
+    <div id="mode1Summary" class="mode-summary"></div>
+    <div id="mode2Summary" class="mode-summary" style="display: none;"></div>
 
-    <div id="sequentialSection" class="gantt-section">
-      <h2>Sequential (largest first, one after another)</h2>
+    <div id="ganttSection" class="gantt-section">
+      <h2 id="ganttTitle">Schedule</h2>
       <div class="gantt-wrapper">
-        <div id="sequentialAxis" class="gantt-axis"></div>
-        <div id="sequentialChart"></div>
+        <div id="ganttAxis" class="gantt-axis"></div>
+        <div id="ganttChart"></div>
       </div>
       <div class="legend">
         <span>Bar length = duration (months)</span>
-        <span>Bar thickness = FTE</span>
+        <span>Bar thickness = people allocated</span>
+        <span id="capacityLegend"></span>
       </div>
-    </div>
-
-    <div id="capacitySection" class="gantt-section">
-      <h2>Capacity-based (parallel up to FTE limit)</h2>
-      <div class="gantt-wrapper">
-        <div id="capacityAxis" class="gantt-axis"></div>
-        <div id="capacityChart"></div>
-      </div>
-      <div class="legend">
-        <span>Bar length = duration</span>
-        <span>Bar thickness = FTE</span>
-        <span>Capacity = <strong id="capacityLabel">80</strong> FTE</span>
-      </div>
+      <p class="capacity-note">Capacity is per month; when a project ends, its people are available for other projects.</p>
     </div>
 
     <div id="status" class="loading">Loading projects…</div>
