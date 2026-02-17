@@ -230,6 +230,11 @@ function main() {
       j++;
     }
     if (children.length === 0) continue;
+
+    /* If individual allocations sum to the annotated capacity, each sub-project
+       is independently staffed — not a shared pool. Skip grouping. */
+    const individualSum = (p.totalResources || 0) + children.reduce((s, c) => s + (c.totalResources || 0), 0);
+    if (individualSum === groupFte) continue;
     const groupId = `feat-group-${p.rowNumber}`;
     p.resourceGroupId = groupId;
     p.totalResources = groupFte;

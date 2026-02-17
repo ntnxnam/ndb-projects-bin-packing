@@ -536,6 +536,66 @@ h1 {
   font-size: 0.7rem;
 }
 
+/* Spare capacity chart */
+.spare-capacity-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100px;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+}
+
+.spare-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 28px;
+  height: 100%;
+  justify-content: flex-end;
+  cursor: default;
+}
+
+.spare-bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 0;
+  transition: height 0.2s ease;
+}
+
+.spare-bar--used {
+  background: #d29922;
+  opacity: 0.75;
+}
+
+.spare-bar--spare {
+  background: #3fb950;
+  opacity: 0.6;
+  border-radius: 2px 2px 0 0;
+}
+
+.spare-label {
+  font-size: 0.55rem;
+  color: var(--muted);
+  margin-top: 3px;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  max-height: 40px;
+  overflow: hidden;
+}
+
+.spare-col:hover .spare-bar--spare {
+  opacity: 1;
+}
+
+.spare-col:hover .spare-bar--used {
+  opacity: 1;
+}
+
 .loading, .error {
   padding: 2rem;
   text-align: center;

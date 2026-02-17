@@ -46,15 +46,16 @@
     </div>
 
     <div class="controls">
+      <!-- Shared inputs: headcount and capacity % apply to both modes -->
+      <div class="control-group">
+        <label for="numFTEs">Number of FTEs</label>
+        <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="100" title="Headcount (people)" placeholder="e.g. 100">
+      </div>
+      <div class="control-group">
+        <label for="capacityPerFte">Capacity per FTE (%)</label>
+        <input type="text" id="capacityPerFte" inputmode="decimal" value="60" title="60 = 60%" placeholder="e.g. 60">
+      </div>
       <div id="mode1Controls" class="mode-controls">
-        <div class="control-group">
-          <label for="numFTEs">Number of FTEs</label>
-          <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="100" title="Headcount (people)" placeholder="e.g. 100">
-        </div>
-        <div class="control-group">
-          <label for="capacityPerFte">Capacity per FTE (%)</label>
-          <input type="text" id="capacityPerFte" inputmode="decimal" value="100" title="100 = 100%" placeholder="e.g. 100 or 60.5">
-        </div>
         <div class="control-group">
           <label for="startDate1">Start date</label>
           <input type="date" id="startDate1" value="2026-04-01">
@@ -69,14 +70,6 @@
           <label for="endDate2">End date</label>
           <input type="date" id="endDate2" value="2027-01-30">
         </div>
-        <div class="control-group">
-          <label for="capacityLimit">Capacity limit (optional)</label>
-          <input type="text" id="capacityLimit" inputmode="numeric" placeholder="e.g. 100 — if set, shows what to drop when over limit">
-        </div>
-      </div>
-      <div class="control-group">
-        <label for="reservedFte">Reserved FTE</label>
-        <input type="text" id="reservedFte" inputmode="numeric" value="0" title="FTE reserved for other work; subtracted from capacity" placeholder="0">
       </div>
       <div class="control-group">
         <label for="commitment">3.0 Commitment Status</label>
@@ -123,6 +116,13 @@
         <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--group-child"></span> Resource group child (no additional capacity)</div>
       </div>
+
+      <section id="spareCapacitySection" class="insight-section" aria-label="Spare capacity" style="display: none;">
+        <h3>Spare capacity</h3>
+        <p id="spareCapacityDesc" class="insight-desc"></p>
+        <div id="spareCapacityChart" class="spare-capacity-chart"></div>
+        <ul id="spareCapacityList" class="insight-list"></ul>
+      </section>
 
       <section id="longPolesSection" class="insight-section" aria-label="Long poles" style="display: none;">
         <h3>Long poles (timeline drivers)</h3>

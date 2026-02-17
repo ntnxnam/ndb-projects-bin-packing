@@ -10,7 +10,7 @@ import { csvToProjects, detectResourceGroups } from './csv-parser.js';
 const DEFAULT_START = '2026-04-01';
 const DEFAULT_END = '2027-01-30';
 const DEFAULT_NUM_FTES = 100;
-const DEFAULT_CAPACITY_PCT = 100;
+const DEFAULT_CAPACITY_PCT = 60;
 const UPLOAD_STORAGE_KEY = 'ndb-projects-upload';
 
 let projects = [];
@@ -30,8 +30,7 @@ function getState() {
   const mode = document.querySelector('input[name="mode"]:checked')?.value || 'fixedFTE';
   const commitment = (document.getElementById('commitment')?.value || '').trim();
   const priority = (document.getElementById('priority')?.value || '').trim();
-  const reservedRaw = document.getElementById('reservedFte')?.value?.trim();
-  const reservedFTE = Math.max(0, parseInt(reservedRaw, 10) || 0);
+  const reservedFTE = 0;
 
   if (mode === 'fixedFTE') {
     const numFTEsRaw = document.getElementById('numFTEs')?.value?.trim();
@@ -54,18 +53,20 @@ function getState() {
       priority,
     };
   } else {
+    const numFTEsRaw = document.getElementById('numFTEs')?.value?.trim();
+    const numFTEs = Math.max(1, Math.min(500, parseInt(numFTEsRaw, 10) || DEFAULT_NUM_FTES));
+    const capacityPctRaw = (document.getElementById('capacityPerFte')?.value ?? '').trim();
+    const capacityPct = Math.max(0.1, Math.min(100, parseFloat(capacityPctRaw) || DEFAULT_CAPACITY_PCT));
+    const capacity = (numFTEs * capacityPct) / 100;
     const startStr = document.getElementById('startDate2')?.value ?? DEFAULT_START;
     const endStr = document.getElementById('endDate2')?.value ?? DEFAULT_END;
-    const capacityLimitRaw = document.getElementById('capacityLimit')?.value?.trim();
-    const capacityLimit = capacityLimitRaw ? Math.max(1, parseInt(capacityLimitRaw, 10) || null) : null;
-    const effectiveCapacityLimit = capacityLimit != null ? Math.max(0, capacityLimit - reservedFTE) : null;
     return {
       mode: 'fixedTimeline',
       startDate: parseDate(startStr),
       endDate: parseDate(endStr),
-      capacity: null,
-      capacityLimit: effectiveCapacityLimit,
-      capacityLimitTotal: capacityLimit,
+      capacity,
+      numFTEs,
+      capacityPct,
       reservedFTE,
       commitment,
       priority,
@@ -261,6 +262,112 @@ function renderConsiderDropping(dropped, endDate, capacityLimit) {
   section.style.display = 'block';
 }
 
+/**
+ * Compute and render spare capacity over the timeline.
+ * Shows a month-by-month bar chart of used vs spare FTEs plus a summary list
+ * highlighting months with significant slack.
+ */
+function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, capacityPct) {
+  const section = document.getElementById('spareCapacitySection');
+  const descEl = document.getElementById('spareCapacityDesc');
+  const chartEl = document.getElementById('spareCapacityChart');
+  const listEl = document.getElementById('spareCapacityList');
+  if (!section || !descEl || !chartEl || !listEl) return;
+
+  if (!schedule?.length || capacity <= 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const tsStart = new Date(startDate);
+  tsStart.setDate(1);
+  function monthIndex(d) {
+    return (d.getFullYear() - tsStart.getFullYear()) * 12 + (d.getMonth() - tsStart.getMonth());
+  }
+  function dateFromMonth(idx) {
+    return new Date(tsStart.getFullYear(), tsStart.getMonth() + idx, 1);
+  }
+
+  const endMo = endDate ? monthIndex(endDate) : 0;
+  const totalMonths = Math.max(endMo, 1);
+
+  /* Build per-month usage (skip resource-group children) */
+  const usage = new Map();
+  for (const entry of schedule) {
+    if (entry.isResourceGroupChild) continue;
+    const fte = entry.fte ?? 0;
+    const sMo = monthIndex(entry.startDate);
+    const eMo = monthIndex(entry.endDate);
+    for (let m = sMo; m < eMo; m++) {
+      usage.set(m, (usage.get(m) ?? 0) + fte);
+    }
+  }
+
+  /* Build spare array */
+  const months = [];
+  let totalSpare = 0;
+  let peakUsed = 0;
+  for (let m = 0; m < totalMonths; m++) {
+    const used = usage.get(m) ?? 0;
+    const spare = Math.max(0, capacity - used);
+    peakUsed = Math.max(peakUsed, used);
+    totalSpare += spare;
+    const d = dateFromMonth(m);
+    months.push({ month: m, date: d, used, spare, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+  }
+
+  const avgSpare = totalMonths > 0 ? (totalSpare / totalMonths) : 0;
+  const capExplain = (numFTEs && capacityPct && capacityPct < 100)
+    ? `Effective capacity: ${capacity.toFixed(0)} (${numFTEs} FTEs × ${capacityPct}%)`
+    : `Effective capacity: ${capacity.toFixed(0)} FTEs`;
+  descEl.textContent = `${capExplain} · Peak allocated: ${peakUsed.toFixed(0)} people · Avg spare: ${avgSpare.toFixed(1)} people/month · Total spare: ${totalSpare.toFixed(0)} person-months over ${totalMonths} months`;
+
+  const capLabel = (numFTEs && capacityPct && capacityPct < 100)
+    ? `${numFTEs} FTEs × ${capacityPct}% = ${capacity.toFixed(0)} effective`
+    : `${capacity.toFixed(0)} FTEs`;
+
+  /* Mini bar chart */
+  chartEl.innerHTML = '';
+  const maxVal = capacity;
+  for (const m of months) {
+    const col = document.createElement('div');
+    col.className = 'spare-col';
+    const usedPct = Math.min(100, (m.used / maxVal) * 100);
+    const sparePct = Math.min(100 - usedPct, (m.spare / maxVal) * 100);
+
+    const usedBar = document.createElement('div');
+    usedBar.className = 'spare-bar spare-bar--used';
+    usedBar.style.height = `${usedPct}%`;
+
+    const spareBar = document.createElement('div');
+    spareBar.className = 'spare-bar spare-bar--spare';
+    spareBar.style.height = `${sparePct}%`;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'spare-label';
+    lbl.textContent = m.label;
+
+    col.title = `${m.label}: ${m.used.toFixed(0)} allocated, ${m.spare.toFixed(0)} available (${capLabel})`;
+    col.appendChild(spareBar);
+    col.appendChild(usedBar);
+    col.appendChild(lbl);
+    chartEl.appendChild(col);
+  }
+
+  /* List notable months with high spare capacity (> 20% of total) */
+  const threshold = capacity * 0.2;
+  const notable = months.filter(m => m.spare >= threshold);
+  if (notable.length > 0) {
+    listEl.innerHTML = notable.map(m => {
+      const pctUsed = capacity > 0 ? Math.round((m.used / capacity) * 100) : 0;
+      return `<li><strong>${m.label}</strong>: ${m.used.toFixed(0)} of ${capLabel} allocated (${pctUsed}%) — <strong>${m.spare.toFixed(0)} people available</strong></li>`;
+    }).join('');
+  } else {
+    listEl.innerHTML = '<li>No months with significant spare capacity (>20% unused).</li>';
+  }
+  section.style.display = 'block';
+}
+
 function render() {
   const state = getState();
   let filtered = filterByCommitment(projects, state.commitment);
@@ -301,18 +408,16 @@ function render() {
     }
     if (ganttTitle) ganttTitle.textContent = '1. Fixed FTEs, fluid timeline';
     if (capacityLegend) {
-      const capText = state.reservedFTE > 0
-        ? `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}% − ${state.reservedFTE} reserved)`
-        : `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}%)`;
-      capacityLegend.textContent = capText;
+      capacityLegend.textContent = `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}%)`;
     }
 
     const dependentsByProject = getDependentsByProject(filtered);
     const ax = document.getElementById('ganttAxis');
     const chart = document.getElementById('ganttChart');
     if (ax) renderTimelineAxis(ax, timeline);
-    if (chart) renderGantt(chart, schedule, timeline, { dependentsByProject, capacity: state.capacity });
+    if (chart) renderGantt(chart, schedule, timeline, { dependentsByProject, capacity: state.numFTEs });
 
+    renderSpareCapacity(schedule, state.startDate, timelineEnd || state.startDate, state.capacity, state.numFTEs, state.capacityPct);
     const longPoles = getLongPoles(schedule, timelineEnd || state.startDate, 0.25);
     renderLongPoles(longPoles, timelineEnd || state.startDate);
     renderConsiderDropping([], null, null);
@@ -322,64 +427,39 @@ function render() {
     if (mode1Summary) mode1Summary.style.display = 'none';
     if (mode2Summary) mode2Summary.style.display = 'block';
 
-    let schedule;
     let timelineEnd = state.endDate;
     let dropped = [];
-    let minCapacity = null;
 
-    if (state.capacityLimit != null) {
-      const result = packWithCapacityAndDeadline(filtered, state.startDate, state.endDate, state.capacityLimit);
-      schedule = result.schedule;
-      dropped = result.dropped || [];
-      if (mode2Summary) {
-        const countNote = (state.commitment || state.priority) && projects.length > 0 ? ` (${filtered.length} of ${projects.length} projects)` : '';
-        if (dropped.length === 0) {
-          mode2Summary.textContent = `All ${filtered.length} projects fit by ${formatDate(state.endDate)} with ${state.capacityLimit} people.${countNote}`;
-        } else {
-          mode2Summary.textContent = `${schedule.length} projects fit, ${dropped.length} cannot fit by ${formatDate(state.endDate)} with ${state.capacityLimit} people. See "Consider dropping" below.${countNote}`;
-        }
-      }
-    } else {
-      const result = findMinCapacityToFit(filtered, state.startDate, state.endDate, state.reservedFTE || 0);
-      schedule = result.schedule || [];
-      minCapacity = result.minCapacity;
-      if (mode2Summary) {
-        const countNote = (state.commitment || state.priority) && projects.length > 0 ? ` Showing ${filtered.length} of ${projects.length} projects.` : '';
-        if (minCapacity != null) {
-          mode2Summary.textContent = `Required FTEs = ${minCapacity} people (to fit by ${formatDate(state.endDate)})${countNote}`;
-        } else {
-          mode2Summary.textContent = `Cannot fit all projects by ${formatDate(state.endDate)}. Try a later end date or set a capacity limit to see what to drop.${countNote}`;
-        }
+    const result = packWithCapacityAndDeadline(filtered, state.startDate, state.endDate, state.capacity);
+    const schedule = result.schedule;
+    dropped = result.dropped || [];
+    if (mode2Summary) {
+      const countNote = (state.commitment || state.priority) && projects.length > 0 ? ` (${filtered.length} of ${projects.length} projects)` : '';
+      const capNote = `${state.numFTEs} FTEs × ${state.capacityPct}% = ${state.capacity.toFixed(0)} effective`;
+      if (dropped.length === 0) {
+        mode2Summary.textContent = `All ${filtered.length} projects fit by ${formatDate(state.endDate)} (${capNote}).${countNote}`;
+      } else {
+        mode2Summary.textContent = `${schedule.length} projects fit, ${dropped.length} cannot fit by ${formatDate(state.endDate)} (${capNote}). See "Consider dropping" below.${countNote}`;
       }
     }
 
     const timeline = { startDate: state.startDate, endDate: state.endDate };
     if (ganttTitle) ganttTitle.textContent = '2. Fixed timeline, fluid FTEs';
     if (capacityLegend) {
-      if (state.capacityLimit != null) {
-        const limText = state.reservedFTE > 0
-          ? `Capacity limit = ${state.capacityLimit} people (${state.capacityLimitTotal} − ${state.reservedFTE} reserved)`
-          : `Capacity limit = ${state.capacityLimit} people`;
-        capacityLegend.textContent = limText;
-      } else {
-        const reqText = minCapacity != null
-          ? (state.reservedFTE > 0 ? `Required total = ${minCapacity} people (includes ${state.reservedFTE} reserved)` : `Required capacity = ${minCapacity} people`)
-          : '—';
-        capacityLegend.textContent = reqText;
-      }
+      capacityLegend.textContent = `Capacity = ${state.capacity.toFixed(0)} people (${state.numFTEs} × ${state.capacityPct}%)`;
     }
 
     const dependentsByProject = getDependentsByProject(filtered);
     const ax = document.getElementById('ganttAxis');
     const chart = document.getElementById('ganttChart');
     if (ax) renderTimelineAxis(ax, timeline);
-    const effectiveCap = state.capacityLimit ?? minCapacity ?? 0;
-    if (chart) renderGantt(chart, schedule, timeline, { dependentsByProject, capacity: effectiveCap });
+    if (chart) renderGantt(chart, schedule, timeline, { dependentsByProject, capacity: state.numFTEs });
 
     const longPoles = getLongPoles(schedule, timelineEnd, 0.25);
+    renderSpareCapacity(schedule, state.startDate, timelineEnd, state.capacity, state.numFTEs, state.capacityPct);
     renderLongPoles(longPoles, timelineEnd);
-    if (state.capacityLimit != null && dropped.length > 0) {
-      renderConsiderDropping(dropped, state.endDate, state.capacityLimit);
+    if (dropped.length > 0) {
+      renderConsiderDropping(dropped, state.endDate, state.capacity);
     } else {
       renderConsiderDropping([], null, null);
     }
@@ -425,7 +505,7 @@ function bindControls() {
     }, 300);
   }
 
-  const scheduleInputs = ['numFTEs', 'capacityPerFte', 'startDate1', 'startDate2', 'endDate2', 'capacityLimit', 'reservedFte'];
+  const scheduleInputs = ['numFTEs', 'capacityPerFte', 'startDate1', 'startDate2', 'endDate2'];
   scheduleInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
