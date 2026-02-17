@@ -84,6 +84,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
 
     const bar = document.createElement('div');
     let barClass = 'gantt-bar';
+    if (entry.pastDeadline) barClass += ' gantt-bar--past-deadline';
     if (isChild) barClass += ' gantt-bar--group-child';
     else if (inProgress) barClass += ' gantt-bar--in-progress';
     else if (rotated) barClass += ' gantt-bar--rotated';
@@ -105,7 +106,8 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const groupNote = isChild ? `\n📦 Part of resource group (shares parent Sl No ${project.resourceGroupParentRow}'s people — no additional headcount)` : '';
     const parentNote = project.resourceGroupChildRows?.length ? `\n📦 Resource group parent (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)` : '';
 
-    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}`;
+    const deadlineNote = entry.pastDeadline ? `\n⚠️ Extends past target date` : '';
+    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${deadlineNote}`;
     bar.dataset.fte = effectiveFte.toFixed(1);
 
     const label = document.createElement('span');

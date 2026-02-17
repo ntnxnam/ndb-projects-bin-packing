@@ -115,6 +115,7 @@
         <div class="color-legend-item"><span class="color-swatch color-swatch--rotated"></span> Rotated FTEs (reused from completed projects)</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--group-child"></span> Resource group child (no additional capacity)</div>
+        <div class="color-legend-item"><span class="color-swatch color-swatch--past-deadline"></span> Extends past target date</div>
       </div>
 
       <section id="spareCapacitySection" class="insight-section" aria-label="Spare capacity" style="display: none;">
@@ -130,11 +131,12 @@
         <ul id="longPolesList" class="insight-list"></ul>
       </section>
 
-      <section id="considerDroppingSection" class="insight-section" aria-label="Consider dropping" style="display: none;">
-        <h3>Consider dropping</h3>
-        <p id="considerDroppingDesc" class="insight-desc"></p>
-        <ul id="considerDroppingList" class="insight-list"></ul>
+      <section id="pastDeadlineSection" class="insight-section" aria-label="Past target date" style="display: none;">
+        <h3>Past target date</h3>
+        <p id="pastDeadlineDesc" class="insight-desc"></p>
+        <ul id="pastDeadlineList" class="insight-list"></ul>
       </section>
+
     </div>
 
     <div id="status" class="status"></div>

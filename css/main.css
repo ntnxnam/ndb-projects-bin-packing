@@ -422,6 +422,21 @@ h1 {
   background: #388bfd;
 }
 
+/* Projects that extend past the target deadline */
+.gantt-bar--past-deadline {
+  background: repeating-linear-gradient(
+    -45deg,
+    #da3633,
+    #da3633 4px,
+    #b62324 4px,
+    #b62324 8px
+  );
+  border: 1.5px dashed rgba(255, 255, 255, 0.5);
+}
+.gantt-bar--past-deadline:hover {
+  filter: brightness(1.2);
+}
+
 .gantt-bar-label {
   font-size: 0.75rem;
   white-space: nowrap;
@@ -468,6 +483,7 @@ h1 {
 .color-swatch--rotated { background: #1f6feb; }
 .color-swatch--group-parent { background: #3fb950; border: 2px solid rgba(255,255,255,0.5); }
 .color-swatch--group-child { background: rgba(130, 160, 200, 0.55); border-left: 3px solid rgba(100, 140, 200, 0.8); }
+.color-swatch--past-deadline { background: repeating-linear-gradient(-45deg, #da3633, #da3633 2px, #b62324 2px, #b62324 4px); border: 1px dashed rgba(255,255,255,0.5); }
 
 .capacity-note {
   margin-top: 0.5rem;

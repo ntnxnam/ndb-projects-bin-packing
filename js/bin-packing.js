@@ -331,15 +331,16 @@ export function getScheduleEnd(schedule) {
 }
 
 /**
- * Pack with a hard deadline: projects that would end after endDate are not placed and returned as dropped.
- * Returns { schedule, dropped } where dropped is an array of projects that could not fit by the deadline.
+ * Pack with a target deadline: ALL projects are scheduled (none dropped).
+ * Projects whose end date exceeds the deadline are flagged with `pastDeadline: true`.
+ * Returns { schedule, overflows } where overflows lists projects that extend past the deadline.
  * Resource-group children share their parent's FTE pool.
  */
 export function packWithCapacityAndDeadline(projects, startDate, endDate, capacityFTE) {
   const sorted = orderByDependencyAndSize(projects);
   const childToParent = buildChildToParentMap(sorted);
   const schedule = [];
-  const dropped = [];
+  const overflows = [];
   const usage = new Map();
   const endByRow = new Map();
 
@@ -383,14 +384,16 @@ export function packWithCapacityAndDeadline(projects, startDate, endDate, capaci
         const parentDuration = monthIndex(parentEntry.endDate) - parentStartMo;
         const childRawMonths = durationMonths(p) <= 0 ? 1 : durationMonths(p);
         const cappedMonths = Math.min(childRawMonths, Math.max(parentDuration, 1));
-        schedule.push({
-          project: p, startDate: dateFromMonthIndex(parentStartMo), endDate: dateFromMonthIndex(parentStartMo + cappedMonths),
+        const childEndMo = parentStartMo + cappedMonths;
+        const pastDeadline = childEndMo > deadlineMonthIndex;
+        const childEntry = {
+          project: p, startDate: dateFromMonthIndex(parentStartMo), endDate: dateFromMonthIndex(childEndMo),
           fte: 0, rotated: false, rotatedFteCount: 0,
-          inProgress: parentEntry.inProgress, isResourceGroupChild: true,
-        });
+          inProgress: parentEntry.inProgress, isResourceGroupChild: true, pastDeadline,
+        };
+        schedule.push(childEntry);
+        if (pastDeadline) overflows.push(p);
         if (p.rowNumber != null) endByRow.set(p.rowNumber, parentEntry.endDate);
-      } else {
-        dropped.push(p);
       }
       continue;
     }
@@ -423,11 +426,7 @@ export function packWithCapacityAndDeadline(projects, startDate, endDate, capaci
     }
 
     const endMonth = startMonth + months;
-    if (endMonth > deadlineMonthIndex) {
-      dropped.push(p);
-      continue;
-    }
-
+    const pastDeadline = endMonth > deadlineMonthIndex;
     const startDateObj = dateFromMonthIndex(startMonth);
     const endDateObj = dateFromMonthIndex(endMonth);
 
@@ -445,14 +444,15 @@ export function packWithCapacityAndDeadline(projects, startDate, endDate, capaci
     }
 
     addUsage(startMonth, months, fte);
-    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress };
+    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress, pastDeadline };
     schedule.push(entry);
+    if (pastDeadline) overflows.push(p);
     if (p.rowNumber != null) {
       endByRow.set(p.rowNumber, endDateObj);
       if (p.resourceGroupChildRows?.length) parentScheduleEntry.set(p.rowNumber, entry);
     }
   }
-  return { schedule, dropped };
+  return { schedule, overflows };
 }
 
 /**

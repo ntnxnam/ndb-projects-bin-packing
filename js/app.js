@@ -244,20 +244,23 @@ function renderLongPoles(longPolesSchedule, timelineEnd) {
   section.style.display = 'block';
 }
 
-function renderConsiderDropping(dropped, endDate, capacityLimit) {
-  const section = document.getElementById('considerDroppingSection');
-  const descEl = document.getElementById('considerDroppingDesc');
-  const listEl = document.getElementById('considerDroppingList');
+function renderPastDeadline(schedule, endDate) {
+  const section = document.getElementById('pastDeadlineSection');
+  const descEl = document.getElementById('pastDeadlineDesc');
+  const listEl = document.getElementById('pastDeadlineList');
   if (!section || !descEl || !listEl) return;
-  if (!dropped?.length) {
-    section.style.display = 'none';
-    return;
-  }
-  descEl.textContent = `With ${capacityLimit} headcount, ${dropped.length} project(s) cannot fit by ${formatDate(endDate)}. Consider dropping or delaying these to meet the date.`;
-  listEl.innerHTML = dropped.map(p => {
+  if (!endDate) { section.style.display = 'none'; return; }
+
+  const deadlineMs = endDate.getTime();
+  const past = schedule.filter(e => !e.isResourceGroupChild && e.endDate.getTime() > deadlineMs);
+  if (past.length === 0) { section.style.display = 'none'; return; }
+
+  descEl.textContent = `${past.length} project(s) extend past ${formatDate(endDate)}.`;
+  listEl.innerHTML = past.map(e => {
+    const p = e.project;
     const summary = (p.summary || '').slice(0, 60) + ((p.summary || '').length > 60 ? '…' : '');
     const slNo = p.rowNumber != null ? p.rowNumber : '—';
-    return `<li><strong>Sl No ${slNo}</strong> · ${escapeHtml(summary)}</li>`;
+    return `<li><strong>Sl No ${slNo}</strong> · ${escapeHtml(summary)} · finishes ${formatDate(e.endDate)}</li>`;
   }).join('');
   section.style.display = 'block';
 }
@@ -417,30 +420,30 @@ function render() {
     renderSpareCapacity(schedule, state.startDate, timelineEnd || state.startDate, state.capacity, state.numFTEs, state.capacityPct);
     const longPoles = getLongPoles(schedule, timelineEnd || state.startDate, 0.25);
     renderLongPoles(longPoles, timelineEnd || state.startDate);
-    renderConsiderDropping([], null, null);
+    renderPastDeadline([], null);
   } else {
     if (mode1Controls) mode1Controls.style.display = 'none';
     if (mode2Controls) mode2Controls.style.display = '';
     if (mode1Summary) mode1Summary.style.display = 'none';
     if (mode2Summary) mode2Summary.style.display = 'block';
 
-    let timelineEnd = state.endDate;
-    let dropped = [];
-
     const result = packWithCapacityAndDeadline(filtered, state.startDate, state.endDate, state.capacity);
     const schedule = result.schedule;
-    dropped = result.dropped || [];
+
+    /* Extend timeline to cover all scheduled projects */
+    const schedEnd = getScheduleEnd(schedule);
+    let timelineEnd = state.endDate;
+    if (schedEnd && schedEnd.getTime() > timelineEnd.getTime()) {
+      timelineEnd = schedEnd;
+    }
+
     if (mode2Summary) {
       const countNote = (state.commitment || state.priority) && projects.length > 0 ? ` (${filtered.length} of ${projects.length} projects)` : '';
       const capNote = `${state.numFTEs} headcount × ${state.capacityPct}% capacity`;
-      if (dropped.length === 0) {
-        mode2Summary.textContent = `All ${filtered.length} projects fit by ${formatDate(state.endDate)} (${capNote}).${countNote}`;
-      } else {
-        mode2Summary.textContent = `${schedule.length} projects fit, ${dropped.length} cannot fit by ${formatDate(state.endDate)} (${capNote}). See "Consider dropping" below.${countNote}`;
-      }
+      mode2Summary.textContent = `${filtered.length} projects scheduled · ${formatDate(state.startDate)} → ${formatDate(timelineEnd)} (${capNote}).${countNote}`;
     }
 
-    const timeline = { startDate: state.startDate, endDate: state.endDate };
+    const timeline = { startDate: state.startDate, endDate: timelineEnd };
     if (ganttTitle) ganttTitle.textContent = '2. Fixed timeline, fluid FTEs';
     if (capacityLegend) {
       capacityLegend.textContent = `${state.numFTEs} headcount × ${state.capacityPct}% capacity each`;
@@ -455,11 +458,7 @@ function render() {
     const longPoles = getLongPoles(schedule, timelineEnd, 0.25);
     renderSpareCapacity(schedule, state.startDate, timelineEnd, state.capacity, state.numFTEs, state.capacityPct);
     renderLongPoles(longPoles, timelineEnd);
-    if (dropped.length > 0) {
-      renderConsiderDropping(dropped, state.endDate, state.numFTEs);
-    } else {
-      renderConsiderDropping([], null, null);
-    }
+    renderPastDeadline(schedule, state.endDate);
   }
 }
 
