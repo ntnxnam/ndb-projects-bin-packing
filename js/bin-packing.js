@@ -291,8 +291,11 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE) {
     }
 
     let startMonth = earliestStartMonth;
-    while (!canFit(startMonth, months, fte)) {
-      startMonth++;
+    const MAX_SEARCH_MONTHS = 1200;
+    if (fte <= capacityFTE) {
+      while (!canFit(startMonth, months, fte) && startMonth - earliestStartMonth < MAX_SEARCH_MONTHS) {
+        startMonth++;
+      }
     }
 
     const startDateObj = dateFromMonthIndex(startMonth);
@@ -421,8 +424,11 @@ export function packWithCapacityAndDeadline(projects, startDate, endDate, capaci
     }
 
     let startMonth = earliestStartMonth;
-    while (!canFit(startMonth, months, fte)) {
-      startMonth++;
+    const MAX_SEARCH_MONTHS = 1200;
+    if (fte <= capacityFTE) {
+      while (!canFit(startMonth, months, fte) && startMonth - earliestStartMonth < MAX_SEARCH_MONTHS) {
+        startMonth++;
+      }
     }
 
     const endMonth = startMonth + months;
