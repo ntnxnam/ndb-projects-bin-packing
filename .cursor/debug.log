@@ -1,0 +1,176 @@
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356208185,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356208186,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356210346,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356210346,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356210501,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356210501,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356210682,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356210682,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356210858,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356210858,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356211023,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356211023,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":""},"timestamp":1771356211175,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356211176,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771356300460,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356300461,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356304811,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771356352216,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771356352217,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356355072,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356355350,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771356527839,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356527840,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356533054,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771356546430,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771356546432,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356553093,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356553725,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356553809,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771356631133,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771356925388,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356925389,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771356930349,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771356945224,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771356945225,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771357102487,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"upload","beforeGanttHidden":false,"beforeUploadHidden":true},"timestamp":1771357104706,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"upload","ganttPanelHidden":true,"uploadPanelHidden":false,"ganttDisplay":"none","uploadDisplay":""},"timestamp":1771357104707,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771357106412,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771357110719,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771357112409,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771357112410,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771357139448,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771357139449,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771357143655,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771357145186,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771357145187,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"upload","beforeGanttHidden":false,"beforeUploadHidden":true},"timestamp":1771358408660,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"upload","ganttPanelHidden":true,"uploadPanelHidden":false,"ganttDisplay":"none","uploadDisplay":""},"timestamp":1771358408661,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358548668,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358642356,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358647189,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771358664149,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771358664149,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"upload","beforeGanttHidden":false,"beforeUploadHidden":true},"timestamp":1771358729966,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"upload","ganttPanelHidden":true,"uploadPanelHidden":false,"ganttDisplay":"none","uploadDisplay":""},"timestamp":1771358729969,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771358839909,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771358839910,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771358845047,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358845048,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771358845498,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358845499,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771358845695,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358845696,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771358849052,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359087936,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359087936,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359088283,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359088284,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359088519,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359088520,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359088720,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359088721,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359088957,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359088958,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359089173,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359089174,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359118417,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359118419,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359118516,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359118516,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359118686,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359118687,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359122500,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359217436,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359217436,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359220517,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771359230481,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771359230482,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359456595,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359456596,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457019,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457020,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457214,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457215,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457389,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457390,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457545,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457546,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457714,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457714,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359457869,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359457869,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458023,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458024,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458192,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458192,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458362,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458362,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458553,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458554,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458683,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458683,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359458852,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359458852,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359459035,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359459035,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359459211,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359459211,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359480905,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359846963,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359846964,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847120,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847120,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847320,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847320,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847486,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847487,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847643,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847644,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847811,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847812,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359847952,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359847952,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359851743,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771359967121,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359967122,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771359971032,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771360071322,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771360071323,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771360071474,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771360071474,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771360075140,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771360272028,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771360272029,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360375289,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360375790,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360376491,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360377236,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360378922,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360379032,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360383026,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360383703,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360383807,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360387842,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360388659,"hypothesisId":"H3,H4"}
+{"location":"app.js:bindControls","message":"bindControls ran","data":{"ganttPanelExists":true,"uploadPanelExists":true,"ganttPanelHidden":true,"uploadPanelHidden":false,"ganttSectionParentId":"ganttPanel"},"timestamp":1771360647293,"hypothesisId":"H2,H4,H5"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771360647294,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":true},"timestamp":1771360651719,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771360656040,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771360656040,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360657635,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360666203,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360666265,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360701743,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360705840,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360706441,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360715403,"hypothesisId":"H3,H4"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"upload","beforeGanttHidden":false,"beforeUploadHidden":true},"timestamp":1771360715488,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"upload","ganttPanelHidden":true,"uploadPanelHidden":false,"ganttDisplay":"none","uploadDisplay":""},"timestamp":1771360715489,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:tab click","message":"tab clicked","data":{"tab":"gantt","beforeGanttHidden":true,"beforeUploadHidden":false},"timestamp":1771360716841,"hypothesisId":"H1"}
+{"location":"app.js:tab click after","message":"after set hidden","data":{"tab":"gantt","ganttPanelHidden":false,"uploadPanelHidden":true,"ganttDisplay":"","uploadDisplay":"none"},"timestamp":1771360716841,"hypothesisId":"H2,H3","runId":"post-fix"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360717497,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360724540,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360724554,"hypothesisId":"H3,H4"}
+{"location":"app.js:render start","message":"render() entered","data":{"ganttPanelHidden":false},"timestamp":1771360726226,"hypothesisId":"H3,H4"}
