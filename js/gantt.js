@@ -9,20 +9,23 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * @param {HTMLElement} container
- * @param {Array<{ project, startDate, endDate }>} schedule
+ * @param {Array<{ project, startDate, endDate }>} schedule - display order (e.g. capacity-flow order)
  * @param {{ startDate: Date, endDate: Date }} timeline
- * @param {{ minBarHeightPx?: number, maxBarHeightPx?: number, dependentsByProject?: Map, capacity?: number }} options
+ * @param {{ minBarHeightPx?: number, maxBarHeightPx?: number, dependentsByProject?: Map, capacity?: number, capacityPct?: number, scheduleForBalance?: Array }} options
+ *   capacity = headcount; capacityPct = for converting effective FTE to headcount; scheduleForBalance = original schedule order for correct remaining calc
  */
 export function renderGantt(container, schedule, timeline, options = {}) {
   const minH = options.minBarHeightPx ?? 12;
   const maxH = options.maxBarHeightPx ?? 56;
   const dependentsByProject = options.dependentsByProject;
-  const totalCapacity = options.capacity ?? 0;
+  const headcount = options.capacity ?? 0;
+  const capacityPct = options.capacityPct ?? 100;
+  const pctFactor = capacityPct > 0 && capacityPct <= 100 ? capacityPct / 100 : 1;
+  const balanceSchedule = options.scheduleForBalance ?? schedule;
 
   const rangeStart = timeline.startDate.getTime();
   const rangeEnd = timeline.endDate.getTime();
   const totalMs = Math.max(rangeEnd - rangeStart, 1);
-  const totalMonths = totalMs / MONTH_MS;
 
   const maxFte = Math.max(1, ...schedule.map(s => totalResources(s.project)));
   const scaleFte = (fte) => {
@@ -44,27 +47,33 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   const track = document.createElement('div');
   track.className = 'gantt-track';
 
-  /* Build a per-month usage map so we can show reducing balance per bar.
-     Only count headcount from non-child entries (children share parent's allocation). */
-  const MONTH_MS_LOCAL = 30 * 24 * 60 * 60 * 1000;
+  /* Build per-month usage (effective FTE) and remaining-by-entry. Process in chronological
+     order (by start date) so "remaining" for each project reflects everyone already using
+     capacity in that month, not just projects that appear earlier in the packer list. */
   const timelineStartMs = timeline.startDate.getTime();
   function toMonthIdx(d) {
-    return Math.round((d.getTime() - timelineStartMs) / MONTH_MS_LOCAL);
+    return Math.round((d.getTime() - timelineStartMs) / MONTH_MS);
   }
   const usageAtMonth = new Map();
-  const remainingBefore = [];
-  for (const entry of schedule) {
-    if (entry.isResourceGroupChild) {
-      remainingBefore.push(null);
-      continue;
-    }
+  const remainingByEntry = new Map();
+  const balanceEntries = balanceSchedule.filter(e => !e.isResourceGroupChild);
+  balanceSchedule.forEach(e => {
+    if (e.isResourceGroupChild) remainingByEntry.set(e, null);
+  });
+  balanceEntries.sort((a, b) => {
+    const tA = a.startDate.getTime();
+    const tB = b.startDate.getTime();
+    if (tA !== tB) return tA - tB;
+    return (a.project.rowNumber ?? 0) - (b.project.rowNumber ?? 0);
+  });
+  for (const entry of balanceEntries) {
     const fte = entry.fte ?? totalResources(entry.project);
     const startMo = toMonthIdx(entry.startDate);
     const endMo = toMonthIdx(entry.endDate);
-    /* Capture balance BEFORE this project's allocation */
-    const usedBefore = usageAtMonth.get(startMo) ?? 0;
-    remainingBefore.push(totalCapacity > 0 ? Math.max(0, totalCapacity - usedBefore) : null);
-    /* Then record this project's usage */
+    const usedEffectiveBefore = usageAtMonth.get(startMo) ?? 0;
+    const usedHeadcountBefore = pctFactor > 0 ? usedEffectiveBefore / pctFactor : 0;
+    const remaining = headcount > 0 ? Math.max(0, Math.round(headcount - usedHeadcountBefore)) : null;
+    remainingByEntry.set(entry, remaining);
     for (let m = startMo; m < endMo; m++) {
       usageAtMonth.set(m, (usageAtMonth.get(m) ?? 0) + fte);
     }
@@ -72,7 +81,6 @@ export function renderGantt(container, schedule, timeline, options = {}) {
 
   let topOffset = 0;
   const rowGap = 4;
-  let schedIdx = 0;
 
   for (const entry of schedule) {
     const { project, startDate, endDate, rotated, rotatedFteCount, inProgress } = entry;
@@ -101,8 +109,8 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const rotationNote = rotated ? `\n↻ Rotated: ${rotatedFteCount} people (reused from completed projects)` : '';
     const inProgressNote = inProgress ? `\n⏳ In Progress — 50% remaining (${project.durationMonths ?? '—'} mo total → showing remaining)` : '';
 
-    const remaining = remainingBefore[schedIdx];
-    const balanceNote = remaining != null ? `\nAvailable before allocation: ${Math.round(remaining)} headcount` : '';
+    const remaining = remainingByEntry.get(entry) ?? null;
+    const balanceNote = remaining != null ? `\nAvailable before allocation: ${remaining} headcount` : '';
     const groupNote = isChild ? `\n📦 Part of resource group (shares parent Sl No ${project.resourceGroupParentRow}'s people — no additional headcount)` : '';
     const parentNote = project.resourceGroupChildRows?.length ? `\n📦 Resource group parent (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)` : '';
 
@@ -115,7 +123,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     if (!isChild && remaining != null) {
       const balSpan = document.createElement('span');
       balSpan.className = 'gantt-bar-balance';
-      balSpan.textContent = `[${Math.round(remaining)}] `;
+      balSpan.textContent = `[${remaining}] `;
       label.appendChild(balSpan);
     }
     const summary = project.summary || '';
@@ -127,23 +135,33 @@ export function renderGantt(container, schedule, timeline, options = {}) {
 
     track.appendChild(bar);
     topOffset += height + rowGap;
-    schedIdx++;
   }
 
   track.style.height = `${topOffset}px`;
   track.style.minHeight = `${Math.max(topOffset, 200)}px`;
 
+  /* Viewport: user's start/end fill the visible area; rest is horizontal scroll */
+  const visibleRange = options.visibleRange;
+  let widthPct = 100;
+  if (visibleRange) {
+    const visibleMs = Math.max(visibleRange.endDate.getTime() - visibleRange.startDate.getTime(), 1);
+    widthPct = Math.max(100, (totalMs / visibleMs) * 100);
+  }
+  container.style.width = `${widthPct}%`;
+  track.style.width = '100%';
+
   const trackHeight = track.style.height;
   const grid = document.createElement('div');
   grid.className = 'gantt-grid';
   grid.style.height = trackHeight;
+  grid.style.width = '100%';
   const rangeStartAxis = timeline.startDate.getTime();
   const rangeEndAxis = timeline.endDate.getTime();
   const totalMsAxis = Math.max(rangeEndAxis - rangeStartAxis, 1);
   const start = new Date(timeline.startDate);
   const end = new Date(timeline.endDate);
   const totalMonthsAxis = Math.ceil((end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1);
-  const maxTicks = 14;
+  const maxTicks = Math.min(24, Math.max(14, totalMonthsAxis));
   const interval = Math.max(1, Math.floor(totalMonthsAxis / maxTicks));
   const tickMonths = [];
   for (let i = 0; i < totalMonthsAxis; i += interval) tickMonths.push(i);
@@ -160,13 +178,25 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   }
   container.appendChild(grid);
   container.appendChild(track);
+
+  /* Deadline marker: vertical line at target end date */
+  const deadlineDate = options.deadlineDate;
+  if (deadlineDate && deadlineDate.getTime() > rangeStart && deadlineDate.getTime() < rangeEnd) {
+    const deadlinePct = ((deadlineDate.getTime() - rangeStart) / totalMs) * 100;
+    const line = document.createElement('div');
+    line.className = 'gantt-deadline-line';
+    line.style.left = `${Math.max(0, Math.min(100, deadlinePct))}%`;
+    line.style.height = track.style.height;
+    container.appendChild(line);
+  }
 }
 
 /**
  * Renders the timeline axis above the chart.
  * Uses spaced ticks (max ~12–15 labels) so labels don't overlap on long ranges.
+ * If options.visibleRange is set, axis width is scaled so viewport matches user start/end.
  */
-export function renderTimelineAxis(container, timeline) {
+export function renderTimelineAxis(container, timeline, options = {}) {
   container.innerHTML = '';
   const start = new Date(timeline.startDate);
   const end = new Date(timeline.endDate);
@@ -174,13 +204,21 @@ export function renderTimelineAxis(container, timeline) {
   const rangeEndMs = end.getTime();
   const totalMs = Math.max(rangeEndMs - rangeStartMs, 1);
 
+  let widthPct = 100;
+  const visibleRange = options.visibleRange;
+  if (visibleRange) {
+    const visibleMs = Math.max(visibleRange.endDate.getTime() - visibleRange.startDate.getTime(), 1);
+    widthPct = Math.max(100, (totalMs / visibleMs) * 100);
+  }
+
   const totalMonths = Math.ceil((end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1);
-  const maxTicks = 14;
+  const maxTicks = Math.min(24, Math.max(14, totalMonths));
   const interval = Math.max(1, Math.floor(totalMonths / maxTicks));
   const tickMonths = [];
   for (let i = 0; i < totalMonths; i += interval) tickMonths.push(i);
   if (totalMonths > 0 && tickMonths[tickMonths.length - 1] !== totalMonths - 1) tickMonths.push(totalMonths - 1);
 
+  container.style.width = `${widthPct}%`;
   const axis = document.createElement('div');
   axis.className = 'gantt-axis';
   for (const monthIndex of tickMonths) {

@@ -17,14 +17,17 @@
 
     <div id="uploadPanel" class="tab-panel" role="tabpanel">
       <div class="upload-section">
-        <p class="upload-desc">Upload a prioritization CSV (same columns as Sheet1). Then click Submit to review the data before using it in Schedule.</p>
+        <p class="upload-desc">Upload a prioritization CSV (same columns as Sheet1) or a previously exported project-data JSON. Submit to use in Schedule. Data is kept in this browser and loaded from <code>data/projects.json</code> when present.</p>
         <div class="upload-controls">
-          <input type="file" id="csvFileInput" accept=".csv" aria-label="Choose CSV file">
+          <input type="file" id="csvFileInput" accept=".csv,.json" aria-label="Choose CSV or JSON file">
           <span id="uploadStatus" class="upload-status"></span>
         </div>
         <div id="uploadSubmitRow" class="upload-submit-row" style="display: none;">
           <button type="button" id="uploadSubmitBtn" class="btn-submit">Submit</button>
           <span id="uploadSubmitHint" class="upload-submit-hint">Review the table below, then go to the Schedule tab when ready.</span>
+        </div>
+        <div id="exportRow" class="upload-submit-row" style="display: none;">
+          <button type="button" id="exportJsonBtn" class="btn-export" title="Download as JSON; save as data/projects.json so the app loads it next time without re-uploading">Export project data (JSON)</button>
         </div>
         <div id="uploadTableWrap" class="upload-table-wrap" style="display: none;">
           <h3 class="upload-table-title">Verify projects (ordered by Sl No)</h3>
@@ -34,19 +37,7 @@
     </div>
 
     <div id="ganttPanel" class="tab-panel" role="tabpanel" hidden>
-    <div class="mode-selector">
-      <label class="mode-option">
-        <input type="radio" name="mode" value="fixedFTE" checked>
-        <span>1. Fixed FTEs, fluid timeline</span>
-      </label>
-      <label class="mode-option">
-        <input type="radio" name="mode" value="fixedTimeline">
-        <span>2. Fixed timeline, fluid FTEs</span>
-      </label>
-    </div>
-
     <div class="controls">
-      <!-- Shared inputs: headcount and capacity % apply to both modes -->
       <div class="control-group">
         <label for="numFTEs">Number of FTEs</label>
         <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="100" title="Headcount (people)" placeholder="e.g. 100">
@@ -55,21 +46,13 @@
         <label for="capacityPerFte">Capacity per FTE (%)</label>
         <input type="text" id="capacityPerFte" inputmode="decimal" value="60" title="60 = 60%" placeholder="e.g. 60">
       </div>
-      <div id="mode1Controls" class="mode-controls">
-        <div class="control-group">
-          <label for="startDate1">Start date</label>
-          <input type="date" id="startDate1" value="2026-04-01">
-        </div>
+      <div class="control-group">
+        <label for="startDate">Start date</label>
+        <input type="date" id="startDate" value="2026-04-01">
       </div>
-      <div id="mode2Controls" class="mode-controls" style="display: none;">
-        <div class="control-group">
-          <label for="startDate2">Start date</label>
-          <input type="date" id="startDate2" value="2026-04-01">
-        </div>
-        <div class="control-group">
-          <label for="endDate2">End date</label>
-          <input type="date" id="endDate2" value="2027-01-30">
-        </div>
+      <div class="control-group">
+        <label for="endDate">End date (viewport &amp; target)</label>
+        <input type="date" id="endDate" value="2027-01-30" title="Initial view and target date; scroll right for projects beyond">
       </div>
       <div class="control-group">
         <label for="commitment">3.0 Commitment Status</label>
@@ -93,10 +76,9 @@
       </div>
     </div>
 
-    <p id="submitHint" class="submit-hint">Choose a mode, set your options, then click Submit to see the Gantt.</p>
+    <p id="submitHint" class="submit-hint">Set headcount, dates, and filters, then click Submit to see the Gantt.</p>
 
-    <div id="mode1Summary" class="mode-summary" style="display: none;"></div>
-    <div id="mode2Summary" class="mode-summary" style="display: none;"></div>
+    <div id="scheduleSummary" class="mode-summary" style="display: none;"></div>
 
     <div id="ganttSection" class="gantt-section" style="display: none;">
       <h2 id="ganttTitle">Schedule</h2>

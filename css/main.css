@@ -137,6 +137,13 @@ h1 {
   color: var(--muted);
 }
 
+.upload-desc code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: var(--border);
+  border-radius: 4px;
+}
+
 .upload-controls {
   display: flex;
   align-items: center;
@@ -272,6 +279,20 @@ h1 {
   filter: brightness(1.1);
 }
 
+.btn-export {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-export:hover {
+  background: var(--border);
+}
+
 .submit-hint {
   margin: 0.5rem 0 1rem;
   font-size: 0.9rem;
@@ -282,44 +303,6 @@ h1 {
   font-size: 0.9rem;
   color: var(--accent);
   margin-bottom: 0.75rem;
-}
-
-/* Legacy view tabs (kept for any refs) */
-.views {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.views button {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 0.875rem;
-}
-
-.views button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.views button:hover:not(.active) {
-  background: var(--border);
-}
-
-.view-explainer {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin: 0 0 1rem;
-  line-height: 1.4;
-}
-
-.view-explainer strong {
-  color: var(--text);
 }
 
 /* Gantt container */
@@ -345,6 +328,16 @@ h1 {
 
 #ganttChart {
   position: relative;
+}
+
+.gantt-deadline-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 2;
+  border-left: 2px solid #f85149;
 }
 
 .gantt-grid {
@@ -562,6 +555,14 @@ h1 {
   border-bottom: 1px solid var(--border);
   margin-bottom: 0.75rem;
   overflow-x: auto;
+}
+
+.spare-capacity-inner {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+  min-width: min-content;
 }
 
 .spare-col {

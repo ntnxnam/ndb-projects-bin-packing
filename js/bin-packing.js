@@ -9,19 +9,10 @@
  * Timeline starts 01 Apr 2026; capacity is Dev-only (QA not considered).
  */
 
-import { durationMonths, totalResources } from './sizing.js';
+import { durationMonths, totalResources, SIZING_MONTHS } from './sizing.js';
 
-/**
- * Sort by duration descending (largest first), then by total resources descending.
- */
-export function sortByLargestFirst(projects) {
-  return [...projects].sort((a, b) => {
-    const dmA = durationMonths(a);
-    const dmB = durationMonths(b);
-    if (dmB !== dmA) return dmB - dmA;
-    return totalResources(b) - totalResources(a);
-  });
-}
+/** When duration is missing and no sizing label: assume 1 FTE → long bar (months). */
+const DEFAULT_DURATION_WHEN_UNKNOWN = 12;
 
 /**
  * Build a map: child rowNumber → parent rowNumber, for resource groups.
@@ -91,6 +82,11 @@ export function orderByDependencyAndSize(projects) {
     const ipB = b.inProgress ? 1 : 0;
     if (ipB !== ipA) return ipB - ipA;
 
+    /* Priority tier: Tier 1 (P0 + Committed) scheduled before Tier 2 */
+    const tierA = a._tier ?? 2;
+    const tierB = b._tier ?? 2;
+    if (tierA !== tierB) return tierA - tierB;
+
     const blockA = devBlockerDependentsCount.get(a.rowNumber) ?? 0;
     const blockB = devBlockerDependentsCount.get(b.rowNumber) ?? 0;
     if (blockB !== blockA) return blockB - blockA;
@@ -145,56 +141,6 @@ export function orderByDependencyAndSize(projects) {
     }
   }
   return finalResult;
-}
-
-/**
- * Sequential pack: dev-blocker first, plain deps next, then rest; each project starts after all its dependencies end.
- * Resource-group children are positioned within their parent's window.
- */
-export function packSequential(projects, startDate) {
-  const sorted = orderByDependencyAndSize(projects);
-  const childToParent = buildChildToParentMap(sorted);
-  const result = [];
-  const endByRow = new Map();
-  const parentScheduleEntry = new Map();
-
-  for (const p of sorted) {
-    if (p.isResourceGroupChild) {
-      const parentEntry = parentScheduleEntry.get(p.resourceGroupParentRow);
-      if (parentEntry) {
-        const childRawMonths = durationMonths(p) <= 0 ? 1 : durationMonths(p);
-        const parentMonths = Math.round((parentEntry.endDate - parentEntry.startDate) / (30 * 24 * 60 * 60 * 1000));
-        const cappedMonths = Math.min(childRawMonths, Math.max(parentMonths, 1));
-        const childEnd = new Date(parentEntry.startDate);
-        childEnd.setMonth(childEnd.getMonth() + cappedMonths);
-        result.push({ project: p, startDate: new Date(parentEntry.startDate), endDate: childEnd, fte: 0, isResourceGroupChild: true });
-        if (p.rowNumber != null) endByRow.set(p.rowNumber, parentEntry.endDate);
-      }
-      continue;
-    }
-
-    const rawMonths = durationMonths(p);
-    const months = rawMonths <= 0 ? 1 : rawMonths;
-
-    const depEnds = (p.dependencyRowNumbers || [])
-      .map(depRow => resolveDepRow(depRow, childToParent))
-      .map(depRow => endByRow.get(depRow)).filter(Boolean);
-    let cursor = new Date(startDate);
-    if (depEnds.length > 0) {
-      const maxEnd = new Date(Math.max(...depEnds.map(d => d.getTime())));
-      if (maxEnd.getTime() > cursor.getTime()) cursor = maxEnd;
-    }
-
-    const end = new Date(cursor);
-    end.setMonth(end.getMonth() + months);
-    const entry = { project: p, startDate: new Date(cursor), endDate: end };
-    result.push(entry);
-    if (p.rowNumber != null) {
-      endByRow.set(p.rowNumber, end);
-      if (p.resourceGroupChildRows?.length) parentScheduleEntry.set(p.rowNumber, entry);
-    }
-  }
-  return result;
 }
 
 /**
@@ -271,7 +217,13 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE) {
     /* --- Normal project (including resource-group parents) --- */
     const rawMonths = durationMonths(p);
     const rawFte = totalResources(p);
-    const fullMonths = rawMonths <= 0 ? 1 : rawMonths;
+    let fullMonths = rawMonths > 0 ? rawMonths : null;
+    if (fullMonths == null && p.sizingLabel && SIZING_MONTHS[p.sizingLabel] != null) {
+      fullMonths = SIZING_MONTHS[p.sizingLabel];
+    }
+    if (fullMonths == null || fullMonths <= 0) {
+      fullMonths = DEFAULT_DURATION_WHEN_UNKNOWN;
+    }
     const fte = rawFte <= 0 ? 1 : rawFte;
 
     const isInProgress = !!p.inProgress;
@@ -302,20 +254,27 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE) {
     const endDateObj = dateFromMonthIndex(startMonth + months);
 
     let rotatedFteCount = 0;
+    let releasedFromIndex = undefined;
     if (startMonth > 0) {
       let freedAtStart = 0;
-      for (const prev of result) {
+      let bestReleaserEnd = -1;
+      for (let idx = 0; idx < result.length; idx++) {
+        const prev = result[idx];
         if (prev.isResourceGroupChild) continue;
         const prevEnd = monthIndex(prev.endDate);
         if (prevEnd <= startMonth) {
           freedAtStart += prev.fte;
+          if (prevEnd > bestReleaserEnd) {
+            bestReleaserEnd = prevEnd;
+            releasedFromIndex = idx;
+          }
         }
       }
       rotatedFteCount = Math.min(fte, freedAtStart);
     }
 
     addUsage(startMonth, months, fte);
-    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress };
+    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress, releasedFromIndex };
     result.push(entry);
     if (p.rowNumber != null) {
       endByRow.set(p.rowNumber, endDateObj);
@@ -334,131 +293,45 @@ export function getScheduleEnd(schedule) {
 }
 
 /**
- * Pack with a target deadline: ALL projects are scheduled (none dropped).
- * Projects whose end date exceeds the deadline are flagged with `pastDeadline: true`.
- * Returns { schedule, overflows } where overflows lists projects that extend past the deadline.
- * Resource-group children share their parent's FTE pool.
+ * Reorder schedule for display so that projects that receive freed capacity
+ * appear directly below the project that released them (releaser → receiver).
+ * Keeps resource-group parent+children together as blocks.
  */
-export function packWithCapacityAndDeadline(projects, startDate, endDate, capacityFTE) {
-  const sorted = orderByDependencyAndSize(projects);
-  const childToParent = buildChildToParentMap(sorted);
-  const schedule = [];
-  const overflows = [];
-  const usage = new Map();
-  const endByRow = new Map();
-
-  const timelineStart = new Date(startDate);
-  timelineStart.setDate(1);
-  const deadlineMonthIndex = (endDate.getFullYear() - timelineStart.getFullYear()) * 12 + (endDate.getMonth() - timelineStart.getMonth());
-
-  function monthIndex(d) {
-    return (d.getFullYear() - timelineStart.getFullYear()) * 12 + (d.getMonth() - timelineStart.getMonth());
-  }
-
-  function dateFromMonthIndex(idx) {
-    return new Date(timelineStart.getFullYear(), timelineStart.getMonth() + idx, 1);
-  }
-
-  function canFit(startMonthIndex, durationMonths, fte) {
-    for (let i = 0; i < durationMonths; i++) {
-      const key = startMonthIndex + i;
-      const used = usage.get(key) ?? 0;
-      if (used + fte > capacityFTE) return false;
-    }
-    return true;
-  }
-
-  function addUsage(startMonthIndex, durationMonths, fte) {
-    for (let i = 0; i < durationMonths; i++) {
-      const key = startMonthIndex + i;
-      usage.set(key, (usage.get(key) ?? 0) + fte);
+export function orderByCapacityFlow(schedule) {
+  if (!schedule?.length) return schedule;
+  const blocks = [];
+  for (let i = 0; i < schedule.length; i++) {
+    const entry = schedule[i];
+    if (entry.isResourceGroupChild) {
+      blocks[blocks.length - 1].entries.push(entry);
+    } else {
+      blocks.push({ mainIndex: i, entries: [entry] });
     }
   }
-
-  const parentScheduleEntry = new Map();
-
-  for (const p of sorted) {
-    /* --- Resource-group child --- */
-    if (p.isResourceGroupChild) {
-      const parentRow = p.resourceGroupParentRow;
-      const parentEntry = parentScheduleEntry.get(parentRow);
-      if (parentEntry) {
-        const parentStartMo = monthIndex(parentEntry.startDate);
-        const parentDuration = monthIndex(parentEntry.endDate) - parentStartMo;
-        const childRawMonths = durationMonths(p) <= 0 ? 1 : durationMonths(p);
-        const cappedMonths = Math.min(childRawMonths, Math.max(parentDuration, 1));
-        const childEndMo = parentStartMo + cappedMonths;
-        const pastDeadline = childEndMo > deadlineMonthIndex;
-        const childEntry = {
-          project: p, startDate: dateFromMonthIndex(parentStartMo), endDate: dateFromMonthIndex(childEndMo),
-          fte: 0, rotated: false, rotatedFteCount: 0,
-          inProgress: parentEntry.inProgress, isResourceGroupChild: true, pastDeadline,
-        };
-        schedule.push(childEntry);
-        if (pastDeadline) overflows.push(p);
-        if (p.rowNumber != null) endByRow.set(p.rowNumber, parentEntry.endDate);
-      }
-      continue;
-    }
-
-    /* --- Normal project --- */
-    const rawMonths = durationMonths(p);
-    const rawFte = totalResources(p);
-    const fullMonths = rawMonths <= 0 ? 1 : rawMonths;
-    const fte = rawFte <= 0 ? 1 : rawFte;
-
-    const isInProgress = !!p.inProgress;
-    const months = isInProgress ? Math.max(1, Math.ceil(fullMonths * 0.5)) : fullMonths;
-
-    let earliestStartMonth = 0;
-    if (!isInProgress) {
-      const internalDepRows = (p.dependencyRowNumbers || [])
-        .map(depRow => resolveDepRow(depRow, childToParent))
-        .filter(depRow => endByRow.has(depRow));
-      const depEnds = internalDepRows.map(depRow => endByRow.get(depRow)).filter(Boolean);
-      if (depEnds.length > 0) {
-        const maxEnd = new Date(Math.max(...depEnds.map(d => d.getTime())));
-        earliestStartMonth = monthIndex(maxEnd);
-        if (earliestStartMonth < 0) earliestStartMonth = 0;
-      }
-    }
-
-    let startMonth = earliestStartMonth;
-    const MAX_SEARCH_MONTHS = 1200;
-    if (fte <= capacityFTE) {
-      while (!canFit(startMonth, months, fte) && startMonth - earliestStartMonth < MAX_SEARCH_MONTHS) {
-        startMonth++;
-      }
-    }
-
-    const endMonth = startMonth + months;
-    const pastDeadline = endMonth > deadlineMonthIndex;
-    const startDateObj = dateFromMonthIndex(startMonth);
-    const endDateObj = dateFromMonthIndex(endMonth);
-
-    let rotatedFteCount = 0;
-    if (startMonth > 0) {
-      let freedAtStart = 0;
-      for (const prev of schedule) {
-        if (prev.isResourceGroupChild) continue;
-        const prevEnd = monthIndex(prev.endDate);
-        if (prevEnd <= startMonth) {
-          freedAtStart += prev.fte;
+  const mainIndexToBlockIndex = new Map();
+  blocks.forEach((b, bi) => mainIndexToBlockIndex.set(b.mainIndex, bi));
+  const displayBlocks = [];
+  for (const block of blocks) {
+    const mainEntry = block.entries[0];
+    const fromIdx = mainEntry.releasedFromIndex;
+    if (fromIdx !== undefined && mainEntry.rotated) {
+      const releaserBlock = blocks[mainIndexToBlockIndex.get(fromIdx)];
+      if (releaserBlock) {
+        let insertAfter = displayBlocks.indexOf(releaserBlock);
+        while (insertAfter !== -1 && insertAfter + 1 < displayBlocks.length) {
+          const next = displayBlocks[insertAfter + 1];
+          if (next.entries[0].releasedFromIndex === fromIdx) insertAfter++;
+          else break;
+        }
+        if (insertAfter !== -1) {
+          displayBlocks.splice(insertAfter + 1, 0, block);
+          continue;
         }
       }
-      rotatedFteCount = Math.min(fte, freedAtStart);
     }
-
-    addUsage(startMonth, months, fte);
-    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress, pastDeadline };
-    schedule.push(entry);
-    if (pastDeadline) overflows.push(p);
-    if (p.rowNumber != null) {
-      endByRow.set(p.rowNumber, endDateObj);
-      if (p.resourceGroupChildRows?.length) parentScheduleEntry.set(p.rowNumber, entry);
-    }
+    displayBlocks.push(block);
   }
-  return { schedule, overflows };
+  return displayBlocks.flatMap(b => b.entries);
 }
 
 /**
@@ -472,40 +345,4 @@ export function getLongPoles(schedule, timelineEnd, fraction = 0.25) {
   const rangeMs = Math.max(endMs - startMs, 1);
   const cutoffMs = endMs - fraction * rangeMs;
   return schedule.filter(s => s.endDate.getTime() >= cutoffMs);
-}
-
-/**
- * Find minimum total FTE such that (total - reservedFTE) is enough to fit all by deadline.
- * Returns { minCapacity: total headcount, schedule }. reservedFTE is subtracted from each try.
- */
-export function findMinCapacityToFit(projects, startDate, endDate, reservedFTE = 0) {
-  const deadline = endDate.getTime();
-  let lo = Math.max(1, reservedFTE + 1);
-  let hi = 1000 + Math.max(0, reservedFTE);
-  let best = null;
-  let bestSchedule = null;
-
-  for (const p of projects || []) {
-    const r = totalResources(p);
-    if (r > 0) hi = Math.max(hi, reservedFTE + Math.ceil(r) * 2);
-  }
-
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const effective = Math.max(0, mid - reservedFTE);
-    const farEnd = new Date(endDate);
-    farEnd.setFullYear(farEnd.getFullYear() + 2);
-    const schedule = packWithCapacity(projects, startDate, farEnd, effective);
-    const maxEnd = getScheduleEnd(schedule);
-    const fits = maxEnd && maxEnd.getTime() <= deadline;
-
-    if (fits) {
-      best = mid;
-      bestSchedule = schedule;
-      hi = mid - 1;
-    } else {
-      lo = mid + 1;
-    }
-  }
-  return { minCapacity: best, schedule: bestSchedule };
 }
