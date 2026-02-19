@@ -11,18 +11,18 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
  * @param {HTMLElement} container
  * @param {Array<{ project, startDate, endDate }>} schedule - display order (e.g. capacity-flow order)
  * @param {{ startDate: Date, endDate: Date }} timeline
- * @param {{ minBarHeightPx?: number, maxBarHeightPx?: number, dependentsByProject?: Map, capacity?: number, capacityPct?: number, scheduleForBalance?: Array }} options
- *   capacity = headcount; capacityPct = for converting effective FTE to headcount; scheduleForBalance = original schedule order for correct remaining calc
+ * @param {{ minBarHeightPx?: number, maxBarHeightPx?: number, dependentsByProject?: Map, childToParent?: Map, capacity?: number, capacityPct?: number }} options
+ *   childToParent = resource-group child rowNumber → parent rowNumber for resolving deps. Remaining balance is computed in display (schedule) order so rank 1 gets full headcount.
  */
 export function renderGantt(container, schedule, timeline, options = {}) {
   const minH = options.minBarHeightPx ?? 12;
   const maxH = options.maxBarHeightPx ?? 56;
   const dependentsByProject = options.dependentsByProject;
+  const childToParent = options.childToParent ?? new Map();
+  const resolveDep = (depRow) => childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
   const headcount = options.capacity ?? 0;
   const capacityPct = options.capacityPct ?? 100;
   const pctFactor = capacityPct > 0 && capacityPct <= 100 ? capacityPct / 100 : 1;
-  const balanceSchedule = options.scheduleForBalance ?? schedule;
-
   const rangeStart = timeline.startDate.getTime();
   const rangeEnd = timeline.endDate.getTime();
   const totalMs = Math.max(rangeEnd - rangeStart, 1);
@@ -47,25 +47,18 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   const track = document.createElement('div');
   track.className = 'gantt-track';
 
-  /* Build per-month usage (effective FTE) and remaining-by-entry. Process in chronological
-     order (by start date) so "remaining" for each project reflects everyone already using
-     capacity in that month, not just projects that appear earlier in the packer list. */
+  /* Build remaining-by-entry in display (schedule) order so "available before allocation"
+     matches rank: rank 1 gets full headcount, then we subtract as we go down the list. */
   const timelineStartMs = timeline.startDate.getTime();
   function toMonthIdx(d) {
     return Math.round((d.getTime() - timelineStartMs) / MONTH_MS);
   }
   const usageAtMonth = new Map();
   const remainingByEntry = new Map();
-  const balanceEntries = balanceSchedule.filter(e => !e.isResourceGroupChild);
-  balanceSchedule.forEach(e => {
+  schedule.forEach(e => {
     if (e.isResourceGroupChild) remainingByEntry.set(e, null);
   });
-  balanceEntries.sort((a, b) => {
-    const tA = a.startDate.getTime();
-    const tB = b.startDate.getTime();
-    if (tA !== tB) return tA - tB;
-    return (a.project.rowNumber ?? 0) - (b.project.rowNumber ?? 0);
-  });
+  const balanceEntries = schedule.filter(e => !e.isResourceGroupChild);
   for (const entry of balanceEntries) {
     const fte = entry.fte ?? totalResources(entry.project);
     const startMo = toMonthIdx(entry.startDate);
@@ -105,9 +98,18 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const people = totalResources(project);
     const deps = project.rowNumber != null ? dependentsByProject?.get(project.rowNumber) : null;
     const whyLine = tooltipWhy(deps);
+    const blockers = new Set(project.dependencyDevBlockers || []);
+    const depRows = (project.dependencyRowNumbers || []).filter(r => r !== project.rowNumber);
+    const dependsOnLine = depRows.length
+      ? '\nDepends on (cannot complete until checked in): ' + [...new Set(depRows.map(r => resolveDep(r)))].map(resolved => {
+          const isBlocker = depRows.some(d => resolveDep(d) === resolved && blockers.has(d));
+          return isBlocker ? `${resolved} (Dev-blocker)` : `${resolved}`;
+        }).join(', ')
+      : '';
     const slNoPrefix = project.rowNumber != null ? `${project.rowNumber} - ` : '';
     const rotationNote = rotated ? `\n↻ Rotated: ${rotatedFteCount} people (reused from completed projects)` : '';
-    const inProgressNote = inProgress ? `\n⏳ In Progress — 50% remaining (${project.durationMonths ?? '—'} mo total → showing remaining)` : '';
+    const completedPct = Math.min(100, Math.max(0, project.completedPct ?? 0));
+    const inProgressNote = completedPct > 0 ? `\n⏳ ${completedPct}% completed (${100 - completedPct}% remaining of ${project.durationMonths ?? '—'} mo total)` : '';
 
     const remaining = remainingByEntry.get(entry) ?? null;
     const balanceNote = remaining != null ? `\nAvailable before allocation: ${remaining} headcount` : '';
@@ -115,7 +117,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const parentNote = project.resourceGroupChildRows?.length ? `\n📦 Resource group parent (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)` : '';
 
     const deadlineNote = entry.pastDeadline ? `\n⚠️ Extends past target date` : '';
-    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${deadlineNote}`;
+    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${dependsOnLine}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${deadlineNote}`;
     bar.dataset.fte = effectiveFte.toFixed(1);
 
     const label = document.createElement('span');

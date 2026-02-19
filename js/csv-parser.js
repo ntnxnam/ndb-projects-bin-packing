@@ -130,6 +130,10 @@ export function csvToProjects(csvText) {
   const iQAResources = header.findIndex(h => (h || '').trim().indexOf('Num of QA required') === 0);
   const iAdditionalResources = idx('Additional Resources');
   const iSizingComment = idx('Sizing Comment');
+  const iCompletedPct = idx('How much of this is Completed in % (do not add %, just put a number)') >= 0
+    ? idx('How much of this is Completed in % (do not add %, just put a number)')
+    : header.findIndex(h => (h || '').trim().toLowerCase().indexOf('completed') !== -1 && (h || '').trim().indexOf('%') !== -1);
+  const iCompletedPctFallback = iCompletedPct >= 0 ? iCompletedPct : 5;
 
   const projects = [];
 
@@ -184,6 +188,10 @@ export function csvToProjects(csvText) {
     }
 
     const inProgress = /in\s*progress/i.test(status);
+    const completedPctRaw = (iCompletedPct >= 0 ? row[iCompletedPct] : row[iCompletedPctFallback]) || '';
+    let completedPct = parseFloat(String(completedPctRaw).replace(/,/g, '').trim());
+    if (Number.isNaN(completedPct) || completedPct < 0) completedPct = 0;
+    completedPct = Math.min(100, Math.max(0, completedPct));
 
     projects.push({
       id: `row-${assignedRowNumber}`,
@@ -194,6 +202,7 @@ export function csvToProjects(csvText) {
       priority: priority || 'P0',
       status,
       inProgress,
+      completedPct,
       commitment,
       totalResources: Math.round(devResources * 100) / 100,
       qaResources,

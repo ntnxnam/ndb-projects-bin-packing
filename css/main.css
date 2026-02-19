@@ -157,9 +157,16 @@ h1 {
   color: var(--text);
 }
 
+.upload-status-row {
+  margin: 0.75rem 0 0;
+  min-height: 2em;
+}
+
 .upload-status {
   font-size: 0.875rem;
   color: var(--muted);
+  min-height: 1.5em;
+  display: inline-block;
 }
 
 .upload-status.success {
@@ -270,6 +277,9 @@ h1 {
   border-radius: 6px;
   background: var(--accent);
   color: #fff;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -621,4 +631,111 @@ h1 {
 
 .error {
   color: #f85149;
+}
+
+/* Dependency graph tab – layered node-link diagram */
+.dependency-graph-section {
+  padding: 1rem 0;
+}
+
+.dependency-graph-section h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.dependency-graph-desc {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+  max-width: 56rem;
+}
+
+.dependency-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.dependency-graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dependency-graph-legend-arrow {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath fill='%238b949e' d='M0 4h12l-3 4 3-4-3-4z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.dependency-graph-legend-arrow--blocker {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath fill='%23d29922' d='M0 4h12l-3 4 3-4-3-4z'/%3E%3C/svg%3E");
+}
+
+.dependency-graph-legend-item--blocker {
+  color: #d29922;
+}
+
+.dependency-graph-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow: auto;
+  min-height: 240px;
+}
+
+.dependency-graph-svg {
+  display: block;
+}
+
+.dependency-node-rect {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+
+.dependency-node:hover .dependency-node-rect {
+  fill: var(--bar);
+  stroke: var(--accent);
+}
+
+.dependency-node-sl {
+  fill: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.dependency-node-summary {
+  fill: var(--text);
+  font-size: 12px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.dependency-edge {
+  stroke: var(--muted);
+  opacity: 0.85;
+}
+
+.dependency-edge--blocker {
+  stroke: #d29922;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.dependency-graph-empty {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0;
+  padding: 2rem;
 }

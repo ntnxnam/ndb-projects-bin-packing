@@ -1,11 +1,12 @@
 /**
  * Bin packing for project scheduling.
+ * Dependencies block completion/check-in: a project can start but cannot complete until
+ * its dependency is checked in (so dependent's end >= dependency's end; overlap allowed).
  * Ranking tiers:
- *   0 — In-progress (STATUS = "In Progress"): pinned to start, 50% remaining duration.
+ *   0 — In-progress (STATUS = "In Progress"): pinned to start; remaining duration from project.completedPct (CSV "How much is Completed in %").
  *   1 — Dev-blocker dependencies: higher count → higher rank.
  *   2 — Plain dependencies: higher count → higher rank.
  *   3 — Everything else: longest duration first.
- * All dependencies must be scheduled before a dependent.
  * Timeline starts 01 Apr 2026; capacity is Dev-only (QA not considered).
  */
 
@@ -227,8 +228,13 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE) {
     const fte = rawFte <= 0 ? 1 : rawFte;
 
     const isInProgress = !!p.inProgress;
-    const months = isInProgress ? Math.max(1, Math.ceil(fullMonths * 0.5)) : fullMonths;
+    const completedPct = Math.min(100, Math.max(0, p.completedPct ?? 0));
+    const remainingFraction = (100 - completedPct) / 100;
+    const months = remainingFraction <= 0 ? 1 : Math.max(1, Math.ceil(fullMonths * remainingFraction));
 
+    /* Dependencies block completion/check-in: this project cannot finish before the dependency is "checked in".
+       So we require endMonth >= dependency end month, i.e. startMonth >= earliestEndMonth - months.
+       That allows work to start earlier (overlap with dependency) while still enforcing check-in order. */
     let earliestStartMonth = 0;
     if (!isInProgress) {
       const internalDepRows = (p.dependencyRowNumbers || [])
@@ -237,8 +243,10 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE) {
       const depEnds = internalDepRows.map(depRow => endByRow.get(depRow)).filter(Boolean);
       if (depEnds.length > 0) {
         const maxEnd = new Date(Math.max(...depEnds.map(d => d.getTime())));
-        earliestStartMonth = monthIndex(maxEnd);
-        if (earliestStartMonth < 0) earliestStartMonth = 0;
+        const earliestEndMonth = monthIndex(maxEnd);
+        if (earliestEndMonth >= 0) {
+          earliestStartMonth = Math.max(0, earliestEndMonth - months);
+        }
       }
     }
 

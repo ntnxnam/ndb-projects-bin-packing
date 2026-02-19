@@ -35,6 +35,41 @@ python3 -m http.server 3847
 
 Then open **http://localhost:3847**
 
+## Deploy to QA server
+
+From the repo root:
+
+```bash
+./deploy.sh
+```
+
+This zips the app, uploads to ndb-qa.dev.nutanix.com, backs up the previous version, unzips, and starts the app on port 3847. Open **http://ndb-qa.dev.nutanix.com:3847**
+
+### If you get "Connection timed out" (ERR_CONNECTION_TIMED_OUT)
+
+The browser can’t reach the server. Common causes:
+
+1. **Firewall** – Port 3847 may be blocked between your network and the server. Ask IT to open TCP port 3847 to `ndb-qa.dev.nutanix.com` (or the VM’s IP).
+2. **VPN** – If ndb-qa.dev.nutanix.com is internal, connect to your org VPN and try again.
+3. **Check the app is running on the server** – SSH in and run:
+   ```bash
+   ssh santhosh.s@ndb-qa.dev.nutanix.com
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:3847/
+   lsof -i :3847
+   cat /tmp/ndb-projects-bin-packing.log
+   ```
+   If `curl` returns 200 and `lsof` shows a process, the app is up; the problem is network/firewall between you and the server.
+
+### Access via SSH tunnel (when port 3847 is blocked)
+
+If the app is running on the server (deploy showed HTTP 200) but the browser can’t reach ndb-qa.dev.nutanix.com:3847, use an SSH tunnel so traffic goes over SSH (port 22), which is usually allowed:
+
+```bash
+ssh -L 3847:localhost:3847 santhosh.s@ndb-qa.dev.nutanix.com -N
+```
+
+Leave that terminal open, then open **http://localhost:3847** in your browser. Your Mac forwards local port 3847 to the server’s localhost:3847 over the SSH connection.
+
 ## Data
 
 - **Source:** Prioritization CSV (Sheet1) with columns: FEAT NUMBER, SUMMARY, 3.0 Commitment Status, Total resources required, sizing.

@@ -3,8 +3,9 @@
  * define the viewport (and target date for past-deadline flagging). Scroll right for overflow.
  */
 
-import { packWithCapacity, getScheduleEnd, orderByDependencyAndSize, getLongPoles, orderByCapacityFlow } from './bin-packing.js';
+import { packWithCapacity, getScheduleEnd, orderByDependencyAndSize, getLongPoles } from './bin-packing.js';
 import { renderGantt, renderTimelineAxis } from './gantt.js';
+import { renderDependencyGraph } from './dependency-graph.js';
 import { csvToProjects, detectResourceGroups } from './csv-parser.js';
 import { totalResources } from './sizing.js';
 
@@ -429,24 +430,34 @@ function render() {
   }
 
   const dependentsByProject = getDependentsByProject(filtered);
+  const childToParent = new Map();
+  filtered.forEach(p => {
+    if (p.isResourceGroupChild && p.resourceGroupParentRow != null) {
+      childToParent.set(p.rowNumber, p.resourceGroupParentRow);
+    }
+  });
   const ax = getEl('ganttAxis');
   const chart = getEl('ganttChart');
-  const displaySchedule = orderByCapacityFlow(schedule);
+  const displaySchedule = schedule;
   if (ax) renderTimelineAxis(ax, timeline, { visibleRange });
   if (chart) renderGantt(chart, displaySchedule, timeline, {
     dependentsByProject,
+    childToParent,
     capacity: state.numFTEs,
     capacityPct: state.capacityPct,
-    scheduleForBalance: schedule,
     visibleRange,
     deadlineDate: state.endDate,
   });
 
   const effectiveEnd = timelineEnd && timelineEnd.getTime() > state.endDate.getTime() ? timelineEnd : state.endDate;
-  renderSpareCapacity(schedule, state.startDate, effectiveEnd, state.capacity, state.numFTEs, state.capacityPct, visibleRange);
-  const longPoles = getLongPoles(schedule, effectiveEnd, 0.25);
+  const scheduleCommitted = schedule.filter(e => e.project && norm(e.project.commitment) === 'committed');
+  renderSpareCapacity(scheduleCommitted, state.startDate, effectiveEnd, state.capacity, state.numFTEs, state.capacityPct, visibleRange);
+  const longPoles = getLongPoles(scheduleCommitted, effectiveEnd, 0.25);
   renderLongPoles(longPoles, effectiveEnd);
-  renderPastDeadline(schedule, state.endDate);
+  renderPastDeadline(scheduleCommitted, state.endDate);
+
+  const depGraphEl = getEl('dependencyGraph');
+  if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), { childToParent });
 }
 
 function bindControls() {
@@ -515,8 +526,10 @@ function bindControls() {
 
   const ganttPanel = getEl('ganttPanel');
   const uploadPanel = getEl('uploadPanel');
+  const dependenciesPanel = getEl('dependenciesPanel');
   if (ganttPanel) ganttPanel.style.display = 'none';
   if (uploadPanel) uploadPanel.style.display = '';
+  if (dependenciesPanel) dependenciesPanel.style.display = 'none';
   document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -530,7 +543,41 @@ function bindControls() {
       if (uploadPanel) {
         uploadPanel.hidden = tab !== 'upload';
         uploadPanel.style.display = tab === 'upload' ? '' : 'none';
-        if (tab === 'upload') showExportRow();
+        if (tab === 'upload') {
+          showExportRow();
+          showUploadSubmitRow();
+        }
+      }
+      if (dependenciesPanel) {
+        dependenciesPanel.hidden = tab !== 'dependencies';
+        dependenciesPanel.style.display = tab === 'dependencies' ? '' : 'none';
+        if (tab === 'dependencies') {
+          let listToUse = projects && projects.length > 0 ? projects : null;
+          if (!listToUse || listToUse.length === 0) {
+            try {
+              const stored = localStorage.getItem(UPLOAD_STORAGE_KEY);
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  detectResourceGroups(parsed);
+                  listToUse = parsed;
+                }
+              }
+            } catch (_) {}
+          }
+          const state = getState();
+          let filtered = listToUse ? filterByCommitment(listToUse, state.commitment) : [];
+          filtered = filterByPriority(filtered, state.priority);
+          const childToParent = new Map();
+          filtered.forEach(p => {
+            if (p.isResourceGroupChild && p.resourceGroupParentRow != null) {
+              childToParent.set(p.rowNumber, p.resourceGroupParentRow);
+            }
+          });
+          const depGraphEl = getEl('dependencyGraph');
+          if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), { childToParent });
+          setTimeout(showErrorLog, 100);
+        }
       }
     });
   });
@@ -542,16 +589,84 @@ function bindControls() {
   const uploadSubmitBtn = getEl('uploadSubmitBtn');
   const uploadTableWrap = getEl('uploadTableWrap');
 
+  if (uploadPanel) {
+    uploadPanel.addEventListener('click', (e) => {
+      const isUploadSubmit = e.target.id === 'uploadSubmitBtn' || e.target.closest('#uploadSubmitBtn');
+      if (!isUploadSubmit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (uploadStatus) {
+        uploadStatus.textContent = 'Submitting…';
+        uploadStatus.className = 'upload-status';
+      }
+      runUploadSubmit();
+    }, true);
+  }
+  function runUploadSubmit() {
+    const listToShow = (pendingUploadProjects && pendingUploadProjects.length > 0) ? pendingUploadProjects : projects;
+    if (!listToShow || listToShow.length === 0) {
+      if (uploadStatus) {
+        uploadStatus.textContent = 'No project data. Upload a CSV or JSON above, or add data/projects.json and reload.';
+        uploadStatus.className = 'upload-status error';
+      }
+      return;
+    }
+    if (listToShow === pendingUploadProjects) {
+      projects = pendingUploadProjects;
+      try {
+        localStorage.setItem(UPLOAD_STORAGE_KEY, JSON.stringify(projects));
+      } catch (err) {
+        console.warn('Could not persist uploaded data:', err);
+      }
+    }
+    showExportRow();
+    renderUploadTable(listToShow);
+    render();
+    if (uploadTableWrap) {
+      uploadTableWrap.style.display = 'block';
+      uploadTableWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (uploadStatus) {
+      uploadStatus.textContent = `${listToShow.length} projects loaded. Verify the table below, then go to the Schedule tab when ready.`;
+      uploadStatus.className = 'upload-status success';
+    }
+  }
+  if (uploadSubmitBtn) {
+    uploadSubmitBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (uploadStatus) { uploadStatus.textContent = 'Submitting…'; uploadStatus.className = 'upload-status'; }
+      runUploadSubmit();
+    });
+  }
   if (fileInput && uploadStatus) {
-    fileInput.addEventListener('change', async (e) => {
+    fileInput.addEventListener('click', () => {
+      uploadStatus.textContent = 'Select a file…';
+      uploadStatus.className = 'upload-status';
+    });
+    function onFileChosen(e) {
       const file = e.target.files?.[0];
-      if (!file) return;
+      if (!file) {
+        uploadStatus.textContent = 'No file chosen. Select a .csv or .json file above.';
+        return;
+      }
       uploadStatus.textContent = 'Loading…';
       uploadStatus.className = 'upload-status';
+      void handleFile(file);
+    }
+    fileInput.addEventListener('change', onFileChosen);
+    fileInput.addEventListener('input', onFileChosen);
+    async function handleFile(file) {
       if (uploadSubmitRow) uploadSubmitRow.style.display = 'none';
       if (uploadTableWrap) uploadTableWrap.style.display = 'none';
       try {
         const text = await file.text();
+        if (!text || !text.trim()) {
+          uploadStatus.textContent = 'File is empty.';
+          uploadStatus.className = 'upload-status error';
+          fileInput.value = '';
+          return;
+        }
         const isJson = file.name.toLowerCase().endsWith('.json');
         let next;
         if (isJson) {
@@ -572,31 +687,18 @@ function bindControls() {
         uploadStatus.textContent = `Accepted ${next.length} projects. Click Submit to review.`;
         uploadStatus.className = 'upload-status success';
         if (uploadSubmitRow) uploadSubmitRow.style.display = 'flex';
+        fileInput.blur();
+        if (uploadSubmitBtn) {
+          requestAnimationFrame(() => {
+            uploadSubmitBtn.focus({ preventScroll: true });
+          });
+        }
       } catch (err) {
         uploadStatus.textContent = `Error: ${err.message}`;
         uploadStatus.className = 'upload-status error';
       }
       fileInput.value = '';
-    });
-  }
-
-  if (uploadSubmitBtn && uploadTableWrap && uploadStatus) {
-    uploadSubmitBtn.addEventListener('click', () => {
-      if (!pendingUploadProjects || pendingUploadProjects.length === 0) return;
-      projects = pendingUploadProjects;
-      try {
-        localStorage.setItem(UPLOAD_STORAGE_KEY, JSON.stringify(projects));
-      } catch (err) {
-        console.warn('Could not persist uploaded data:', err);
-      }
-      showExportRow();
-      renderUploadTable(projects);
-      render();
-      uploadTableWrap.style.display = 'block';
-      uploadStatus.textContent = `${projects.length} projects loaded. Verify the table below, then go to the Schedule tab when ready.`;
-      uploadStatus.className = 'upload-status success';
-      uploadTableWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    }
   }
 
   const exportJsonBtn = getEl('exportJsonBtn');
@@ -631,6 +733,7 @@ async function loadProjects() {
           statusEl.textContent = '';
           statusEl.className = '';
           showExportRow();
+          showUploadSubmitRow();
           render();
           return;
         }
@@ -649,6 +752,7 @@ async function loadProjects() {
           statusEl.textContent = '';
           statusEl.className = '';
           showExportRow();
+          showUploadSubmitRow();
           render();
           return;
         }
@@ -669,10 +773,30 @@ function showExportRow() {
   if (row) row.style.display = projects.length > 0 ? 'flex' : 'none';
 }
 
+function showUploadSubmitRow() {
+  const row = getEl('uploadSubmitRow');
+  if (row) row.style.display = (projects.length > 0 || (pendingUploadProjects && pendingUploadProjects.length > 0)) ? 'flex' : 'none';
+}
+
+// Temporary: show collected console errors on page for debugging
+function showErrorLog() {
+  const log = typeof window !== 'undefined' && window.__errLog;
+  if (!log || log.length === 0) return;
+  let el = document.getElementById('debugErrorLog');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'debugErrorLog';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#1a1a1a;color:#f0f0f0;padding:12px 16px;max-height:40vh;overflow:auto;z-index:9999;font:12px monospace;white-space:pre-wrap;border-bottom:2px solid #d29922;';
+    document.body.prepend(el);
+  }
+  el.textContent = log.map((e, i) => `[${i + 1}] ${e.msg}\n  ${(e.url || '') + (e.line != null ? ':' + e.line + ':' + (e.col || '') : '')}\n${e.stack || ''}`).join('\n\n');
+}
+
 // Bind when DOM is ready so date/count inputs exist and listeners attach; then load data
 function init() {
   bindControls();
   loadProjects();
+  setTimeout(showErrorLog, 500);
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

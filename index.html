@@ -4,7 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NDB Projects – Bin packing Gantt</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
   <link rel="stylesheet" href="css/main.css">
+  <script>
+    window.__errLog = [];
+    window.onerror = function(msg, url, line, col, err) {
+      window.__errLog.push({ msg: String(msg), url: url || '', line: line, col: col, stack: err && err.stack });
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      window.__errLog.push({ msg: 'Unhandled rejection: ' + (e.reason && (e.reason.message || String(e.reason))), stack: e.reason && e.reason.stack });
+    });
+  </script>
 </head>
 <body>
   <div class="app">
@@ -13,18 +24,19 @@
     <nav class="tabs" role="tablist">
       <button type="button" class="tab active" data-tab="upload" role="tab" aria-selected="true">1. Refresh CSV</button>
       <button type="button" class="tab" data-tab="gantt" role="tab" aria-selected="false">2. Schedule</button>
+      <button type="button" class="tab" data-tab="dependencies" role="tab" aria-selected="false">3. Dependencies</button>
     </nav>
 
     <div id="uploadPanel" class="tab-panel" role="tabpanel">
       <div class="upload-section">
         <p class="upload-desc">Upload a prioritization CSV (same columns as Sheet1) or a previously exported project-data JSON. Submit to use in Schedule. Data is kept in this browser and loaded from <code>data/projects.json</code> when present.</p>
         <div class="upload-controls">
-          <input type="file" id="csvFileInput" accept=".csv,.json" aria-label="Choose CSV or JSON file">
-          <span id="uploadStatus" class="upload-status"></span>
+          <input type="file" id="csvFileInput" accept=".csv,.json,text/csv,application/json" aria-label="Choose CSV or JSON file">
         </div>
-        <div id="uploadSubmitRow" class="upload-submit-row" style="display: none;">
+        <p class="upload-status-row"><span id="uploadStatus" class="upload-status">No file chosen. Select a .csv or .json file above.</span></p>
+        <div id="uploadSubmitRow" class="upload-submit-row">
           <button type="button" id="uploadSubmitBtn" class="btn-submit">Submit</button>
-          <span id="uploadSubmitHint" class="upload-submit-hint">Review the table below, then go to the Schedule tab when ready.</span>
+          <span class="upload-submit-hint">Review the table below, then go to the Schedule tab when ready.</span>
         </div>
         <div id="exportRow" class="upload-submit-row" style="display: none;">
           <button type="button" id="exportJsonBtn" class="btn-export" title="Download as JSON; save as data/projects.json so the app loads it next time without re-uploading">Export project data (JSON)</button>
@@ -92,7 +104,7 @@
         <span id="capacityLegend"></span>
       </div>
       <div class="color-legend">
-        <div class="color-legend-item"><span class="color-swatch color-swatch--in-progress"></span> In Progress (50% remaining)</div>
+        <div class="color-legend-item"><span class="color-swatch color-swatch--in-progress"></span> In Progress (completion % from CSV column)</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--fresh"></span> Fresh allocation</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--rotated"></span> Rotated FTEs (reused from completed projects)</div>
         <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
@@ -122,6 +134,14 @@
     </div>
 
     <div id="status" class="status"></div>
+    </div>
+
+    <div id="dependenciesPanel" class="tab-panel" role="tabpanel" hidden>
+      <section class="dependency-graph-section" aria-label="Dependency graph">
+        <h2>Dependency graph</h2>
+        <p class="dependency-graph-desc">Who blocks whom: arrows point from a dependency to the project that cannot complete until it’s checked in. Same filters as Schedule.</p>
+        <div id="dependencyGraph" class="dependency-graph-container"></div>
+      </section>
     </div>
   </div>
 

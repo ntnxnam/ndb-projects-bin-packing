@@ -111,6 +111,11 @@ function main() {
   const iDependencyNumbers = idx('Dependency Numbers (Comma Separated List)');
   const iTotalPersonMonths = idx('Total Months Needed for 1 person by Dev (Everything from start to finish)');
   const iNumberMonthsDev = idx('Number of Months (Dev)');
+  const iCompletedPct = idx('How much of this is Completed in % (do not add %, just put a number)') >= 0
+    ? idx('How much of this is Completed in % (do not add %, just put a number)')
+    : header.findIndex(h => (h || '').trim().toLowerCase().indexOf('completed') !== -1);
+  const iCompletedPctCol = iCompletedPct >= 0 ? iCompletedPct : 5;
+
   const iQAResources = header.findIndex(h => {
     const t = (h || '').trim();
     return t.indexOf('Num of QA required') !== -1 && t.indexOf('60% productivity') === -1;
@@ -154,6 +159,10 @@ function main() {
     const priority = (row[iPriority] || '').trim();
     const status = iStatus >= 0 ? (row[iStatus] || '').trim() : '';
     const inProgress = /in\s*progress/i.test(status);
+    const completedPctRaw = (row[iCompletedPctCol] || '').toString().replace(/,/g, '').trim();
+    let completedPct = parseFloat(completedPctRaw);
+    if (Number.isNaN(completedPct) || completedPct < 0) completedPct = 0;
+    completedPct = Math.min(100, Math.max(0, completedPct));
 
     const rowNumRaw = (row[iFirstCol] || '').trim();
     const rowNumber = rowNumRaw && !Number.isNaN(parseInt(rowNumRaw, 10)) ? parseInt(rowNumRaw, 10) : null;
@@ -197,6 +206,7 @@ function main() {
       priority: priority || 'P0',
       status,
       inProgress,
+      completedPct,
       commitment,
       totalResources: Math.round(devResources * 100) / 100,
       qaResources,
