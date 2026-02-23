@@ -13,7 +13,7 @@ const PAD = 28;
 /**
  * @param {HTMLElement} container
  * @param {Array<{ rowNumber, summary, dependencyRowNumbers, dependencyDevBlockers }>} projects - filtered list (main + children; we use main for nodes)
- * @param {{ childToParent?: Map<number, number> }} options
+ * @param {{ childToParent?: Map<number, number>, groups?: number[][] }} options - groups: each array is one group (first row = canonical node)
  */
 export function renderDependencyGraph(container, projects, options = {}) {
   if (!container || typeof container.appendChild !== 'function') return;
@@ -34,22 +34,95 @@ export function renderDependencyGraph(container, projects, options = {}) {
 
 function renderDependencyGraphImpl(container, projects, options) {
   const childToParent = options.childToParent ?? new Map();
-  const resolve = (row) => childToParent.get(row) ?? row;
+  const groups = options.groups ?? [];
+  const rowToCanonical = new Map();
+  const canonicalToGroup = new Map();
+  for (const group of groups) {
+    if (group.length === 0) continue;
+    const canonical = group[0];
+    for (const row of group) rowToCanonical.set(row, canonical);
+    canonicalToGroup.set(canonical, group);
+  }
+  const resolve = (row) => {
+    const r = childToParent.get(row) ?? row;
+    return rowToCanonical.get(r) ?? r;
+  };
 
-  const main = (projects || []).filter(p => !p.isResourceGroupChild);
+  const mainAll = (projects || []).filter(p => !p.isResourceGroupChild);
+  const main = mainAll.filter(p => {
+    const canonical = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
+    return p.rowNumber === canonical;
+  });
+  const children = (projects || []).filter(p => p.isResourceGroupChild);
   const byRow = new Map(main.map(p => [p.rowNumber, p]));
   const rankOrderIndex = new Map();
   main.forEach((p, i) => rankOrderIndex.set(p.rowNumber, i));
 
-  const edges = [];
-  const blockers = (p) => new Set(p.dependencyDevBlockers || []);
-  for (const p of main) {
+  /* Effective dependencies per canonical row: aggregate from all in group + resource-group children */
+  const effectiveDepsByRow = new Map();
+  for (const p of mainAll) {
+    const canon = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
+    if (!byRow.has(canon)) continue;
+    let set = effectiveDepsByRow.get(canon);
+    if (!set) { set = new Set(); effectiveDepsByRow.set(canon, set); }
     for (const orig of (p.dependencyRowNumbers || [])) {
       const depRow = resolve(orig);
-      if (depRow === p.rowNumber || !byRow.has(depRow)) continue;
-      edges.push({ from: depRow, to: p.rowNumber, isBlocker: blockers(p).has(orig) });
+      if (byRow.has(depRow) && depRow !== canon) set.add(depRow);
     }
   }
+  for (const p of children) {
+    const parentRow = p.resourceGroupParentRow;
+    if (parentRow == null) continue;
+    const canon = rowToCanonical.get(parentRow) ?? parentRow;
+    if (!byRow.has(canon)) continue;
+    let set = effectiveDepsByRow.get(canon);
+    if (!set) { set = new Set(); effectiveDepsByRow.set(canon, set); }
+    for (const orig of (p.dependencyRowNumbers || [])) {
+      const depRow = resolve(orig);
+      if (byRow.has(depRow) && depRow !== canon) set.add(depRow);
+    }
+  }
+
+  const edges = [];
+  const blockers = (p) => new Set(p.dependencyDevBlockers || []);
+  const edgeKey = (from, to) => `${from}\t${to}`;
+  const edgeBlocker = new Map();
+  const seen = new Set();
+
+  function addEdge(from, to, isBlockerVal) {
+    const key = edgeKey(from, to);
+    if (seen.has(key)) {
+      if (isBlockerVal) edgeBlocker.set(key, true);
+      return;
+    }
+    seen.add(key);
+    edges.push({ from, to, isBlocker: isBlockerVal });
+    edgeBlocker.set(key, edgeBlocker.get(key) || isBlockerVal);
+  }
+
+  for (const p of mainAll) {
+    const toRow = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
+    if (!byRow.has(toRow)) continue;
+    for (const orig of (p.dependencyRowNumbers || [])) {
+      const depRow = resolve(orig);
+      if (depRow === toRow || !byRow.has(depRow)) continue;
+      addEdge(depRow, toRow, blockers(p).has(orig));
+    }
+  }
+  for (const p of children) {
+    const parentRow = p.resourceGroupParentRow;
+    if (parentRow == null) continue;
+    const toRow = rowToCanonical.get(parentRow) ?? parentRow;
+    if (!byRow.has(toRow)) continue;
+    for (const orig of (p.dependencyRowNumbers || [])) {
+      const depRow = resolve(orig);
+      if (!byRow.has(depRow) || depRow === toRow) continue;
+      addEdge(depRow, toRow, blockers(p).has(orig));
+    }
+  }
+  edges.forEach(e => {
+    e.isBlocker = !!edgeBlocker.get(edgeKey(e.from, e.to));
+  });
 
   const layers = [];
   const layerOf = new Map();
@@ -61,8 +134,7 @@ function renderDependencyGraphImpl(container, projects, options) {
       return 0;
     }
     visiting.add(row);
-    const p = byRow.get(row);
-    const deps = (p?.dependencyRowNumbers || []).map(resolve).filter(r => byRow.has(r));
+    const deps = effectiveDepsByRow.get(row) ? [...effectiveDepsByRow.get(row)] : [];
     const depLayers = deps.map(r => assignLayer(r));
     const L = deps.length === 0 ? 0 : 1 + Math.max(...depLayers);
     visiting.delete(row);
@@ -107,7 +179,7 @@ function renderDependencyGraphImpl(container, projects, options) {
   /* Legend */
   const legend = document.createElement('div');
   legend.className = 'dependency-graph-legend';
-  legend.innerHTML = '<span class="dependency-graph-legend-item"><span class="dependency-graph-legend-arrow"></span> Depends on (cannot complete until source is checked in)</span><span class="dependency-graph-legend-item dependency-graph-legend-item--blocker"><span class="dependency-graph-legend-arrow dependency-graph-legend-arrow--blocker"></span> Dev-blocker</span>';
+  legend.innerHTML = '<span class="dependency-graph-legend-item"><span class="dependency-graph-legend-arrow"></span> Depends on (cannot complete until source is checked in)</span><span class="dependency-graph-legend-item dependency-graph-legend-item--blocker"><span class="dependency-graph-legend-arrow dependency-graph-legend-arrow--blocker"></span> Dev-blocker</span><span class="dependency-graph-legend-item dependency-graph-legend-item--resource-group"><span class="dependency-graph-legend-node dependency-graph-legend-node--resource-group"></span> Shared pool (combined effort)</span><span class="dependency-graph-legend-item dependency-graph-legend-item--multi-line"><span class="dependency-graph-legend-node dependency-graph-legend-node--multi-line"></span> Multiple line items (effort per row)</span>';
   container.appendChild(legend);
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -167,8 +239,16 @@ function renderDependencyGraphImpl(container, projects, options) {
   main.forEach(p => {
     const pos = nodePos.get(p.rowNumber);
     if (!pos) return;
+    const isResourceGroup = !!(p.resourceGroupChildRows && p.resourceGroupChildRows.length > 0);
+    const groupArrForLabel = canonicalToGroup.get(p.rowNumber);
+    const isMultiLineGroup = groupArrForLabel && groupArrForLabel.length > 1;
+
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('class', 'dependency-node');
+    let nodeClass = 'dependency-node';
+    if (isResourceGroup) nodeClass += ' dependency-node--resource-group';
+    if (isMultiLineGroup) nodeClass += ' dependency-node--multi-line';
+    g.setAttribute('class', nodeClass);
+
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', pos.x);
     rect.setAttribute('y', pos.y);
@@ -183,7 +263,12 @@ function renderDependencyGraphImpl(container, projects, options) {
     labelSl.setAttribute('x', pos.x + 12);
     labelSl.setAttribute('y', pos.y + 20);
     labelSl.setAttribute('class', 'dependency-node-sl');
-    labelSl.textContent = `#${p.rowNumber}`;
+    const slLabel = isResourceGroup
+      ? `#${p.rowNumber} (shared pool)`
+      : isMultiLineGroup
+        ? `#${p.rowNumber} (multiple line items)`
+        : `#${p.rowNumber}`;
+    labelSl.textContent = slLabel;
     const labelSummary = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     labelSummary.setAttribute('x', pos.x + 12);
     labelSummary.setAttribute('y', pos.y + 38);
@@ -193,9 +278,16 @@ function renderDependencyGraphImpl(container, projects, options) {
     g.appendChild(labelSl);
     g.appendChild(labelSummary);
     g.setAttribute('data-row', String(p.rowNumber));
-    const depsList = (p.dependencyRowNumbers || []).map(r => resolve(r)).filter(r => byRow.has(r)).join(', ');
+    const effectiveDeps = effectiveDepsByRow.get(p.rowNumber);
+    const depsList = effectiveDeps ? [...effectiveDeps].join(', ') : '';
+    const groupArr = canonicalToGroup.get(p.rowNumber);
+    const groupNote = groupArr && groupArr.length > 1
+      ? `\nMultiple line items (effort per row): ${groupArr.join(', ')}`
+      : isResourceGroup && p.resourceGroupChildRows?.length
+        ? `\nResource group (combined effort): parent + ${p.resourceGroupChildRows.length} sub`
+        : '';
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = `${p.rowNumber} – ${p.summary || '—'}\nDepends on: ${depsList || 'none'}`;
+    title.textContent = `#${p.rowNumber} – ${p.summary || '—'}${groupNote}\nDepends on: ${depsList || 'none'}`;
     g.appendChild(title);
     svg.appendChild(g);
   });

@@ -457,7 +457,10 @@ function render() {
   renderPastDeadline(scheduleCommitted, state.endDate);
 
   const depGraphEl = getEl('dependencyGraph');
-  if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), { childToParent });
+  if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), {
+    childToParent,
+    groups: [[59, 60, 61, 62, 63, 64, 65, 66, 67, 104]],
+  });
 }
 
 function bindControls() {
@@ -575,7 +578,10 @@ function bindControls() {
             }
           });
           const depGraphEl = getEl('dependencyGraph');
-          if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), { childToParent });
+          if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), {
+            childToParent,
+            groups: [[59, 60, 61, 62, 63, 64, 65, 66, 67, 104]],
+          });
           setTimeout(showErrorLog, 100);
         }
       }

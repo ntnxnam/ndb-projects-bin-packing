@@ -682,6 +682,24 @@ h1 {
   color: #d29922;
 }
 
+.dependency-graph-legend-node {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--surface);
+}
+
+.dependency-graph-legend-node--resource-group {
+  border: 2px solid var(--accent);
+}
+
+.dependency-graph-legend-node--multi-line {
+  border: 1.5px dashed #8b7355;
+}
+
 .dependency-graph-container {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -720,6 +738,27 @@ h1 {
   font-size: 12px;
   font-family: 'Segoe UI', system-ui, sans-serif;
   pointer-events: none;
+}
+
+/* Resource group: combined effort (one shared pool) – solid accent border */
+.dependency-node--resource-group .dependency-node-rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.dependency-node--resource-group:hover .dependency-node-rect {
+  stroke: var(--accent);
+}
+
+/* Multiple line items: effort per row (e.g. IAMv2) – dashed border */
+.dependency-node--multi-line .dependency-node-rect {
+  stroke: #8b7355;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.dependency-node--multi-line:hover .dependency-node-rect {
+  stroke: #a08060;
 }
 
 .dependency-edge {
