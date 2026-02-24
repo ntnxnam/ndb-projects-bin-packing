@@ -145,7 +145,22 @@ export async function generateExecReport(ctx) {
     const ganttWrapper = ganttSection.querySelector('.gantt-wrapper');
     if (ganttWrapper) {
       const remainingH = pageH - y - margin;
+
+      /* Temporarily expand the scroll container so the full chart
+         (including bars past the viewport) is rendered for capture. */
+      const scrollBox = ganttWrapper.querySelector('.gantt-chart-scroll');
+      const savedOverflow = scrollBox?.style.overflow;
+      const savedMaxW = scrollBox?.style.maxWidth;
+      if (scrollBox) {
+        scrollBox.style.overflow = 'visible';
+        scrollBox.style.maxWidth = 'none';
+      }
+      const savedWrapperOverflow = ganttWrapper.style.overflow;
+      ganttWrapper.style.overflow = 'visible';
+
       try {
+        const fullW = ganttWrapper.scrollWidth;
+        const fullH = ganttWrapper.scrollHeight;
         const canvas = await html2canvas(ganttWrapper, {
           backgroundColor: '#0f1419',
           scale: 2,
@@ -153,8 +168,10 @@ export async function generateExecReport(ctx) {
           logging: false,
           scrollX: 0,
           scrollY: 0,
-          windowWidth: ganttWrapper.scrollWidth,
-          windowHeight: ganttWrapper.scrollHeight,
+          width: fullW,
+          height: fullH,
+          windowWidth: fullW,
+          windowHeight: fullH,
         });
         const imgData = canvas.toDataURL('image/png');
         const imgAspect = canvas.width / canvas.height;
@@ -171,6 +188,12 @@ export async function generateExecReport(ctx) {
         doc.setTextColor(C.muted);
         doc.text('[Gantt chart capture failed]', margin, y + 12);
         y += 20;
+      } finally {
+        if (scrollBox) {
+          scrollBox.style.overflow = savedOverflow ?? '';
+          scrollBox.style.maxWidth = savedMaxW ?? '';
+        }
+        ganttWrapper.style.overflow = savedWrapperOverflow ?? '';
       }
     }
   }
