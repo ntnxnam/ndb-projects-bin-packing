@@ -26,9 +26,13 @@ import { orderByDependencyAndSize, getDependentsByProject, orderScheduleByBlocke
 import { renderGantt, renderTimelineAxis } from './gantt.js';
 import { totalResources } from './sizing.js';
 import { detectResourceGroups } from './resource-groups.js';
+import { generateExecReport } from './exec-report.js';
 
 /** Projects list for this page (from state or data/projects.json). */
 let projects = [];
+
+/** Last schedule context for export. */
+let lastScheduleCtx = null;
 
 /**
  * Parse YYYY-MM-DD string to Date at start of day.
@@ -540,6 +544,16 @@ function render() {
   renderPastDeadline(schedule, state.endDate);
   renderRecommendations(schedule, state.endDate, state.capacityPct, state.numFTEs, longPoles, timelineEnd);
 
+  lastScheduleCtx = {
+    schedule,
+    projects: filtered,
+    startDate: state.startDate,
+    endDate: state.endDate,
+    numFTEs: state.numFTEs,
+    capacityPct: state.capacityPct,
+    capacity: state.capacity,
+  };
+
   const statusEl = getEl('status');
   if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
   logger.info('schedule.render: done', filtered.length, 'projects', schedule.length, 'schedule entries');
@@ -640,24 +654,25 @@ function bindControls() {
   const priorityEl = getEl('priority');
   if (priorityEl) priorityEl.addEventListener('change', scheduleUpdate);
 
-  const submitBtn = getEl('submitBtn');
-  if (submitBtn) {
-    submitBtn.addEventListener('click', (e) => {
+  const exportBtn = getEl('exportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      try {
+      if (!lastScheduleCtx) {
         scheduleUpdate();
-        const ganttSection = getEl('ganttSection');
-        if (ganttSection) {
-          ganttSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          ganttSection.scrollTop = 0;
-        }
-        const chart = getEl('ganttChart');
-        const wrapper = chart?.closest('.gantt-wrapper') || chart?.parentElement;
-        if (wrapper) wrapper.scrollLeft = 0;
+      }
+      if (!lastScheduleCtx) return;
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Generating…';
+      try {
+        await generateExecReport(lastScheduleCtx);
       } catch (err) {
-        logger.error('schedule.submit', err);
+        logger.error('exec-report', err);
         const statusEl = getEl('status');
-        if (statusEl) { statusEl.textContent = `Error: ${err.message}`; statusEl.className = 'error'; }
+        if (statusEl) { statusEl.textContent = `Export error: ${err.message}`; statusEl.className = 'error'; }
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = 'Export Exec Report';
       }
     });
   }

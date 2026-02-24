@@ -46,12 +46,12 @@
           </select>
         </div>
         <div class="control-group">
-          <label for="submitBtn">&nbsp;</label>
-          <button type="button" id="submitBtn" class="btn-submit">Submit</button>
+          <label for="exportBtn">&nbsp;</label>
+          <button type="button" id="exportBtn" class="btn-export-report" title="Generate and download an executive summary PDF">Export Exec Report</button>
         </div>
       </div>
 
-      <p id="submitHint" class="submit-hint">Set headcount, dates, and filters, then click Submit to see the Gantt.</p>
+      <p id="submitHint" class="submit-hint">Set headcount, dates, and filters. The schedule renders automatically. Click Export Exec Report to download a PDF.</p>
 
       <div id="scheduleSummary" class="mode-summary" style="display: none;"></div>
 
@@ -111,6 +111,8 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script type="module" src="js/schedule.js"></script>
 </body>
 </html>

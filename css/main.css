@@ -314,6 +314,28 @@ a.tab {
   margin-bottom: 0.5rem;
 }
 
+.btn-export-report {
+  padding: 0.6rem 1.4rem;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: filter 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+}
+.btn-export-report:hover:not(:disabled) {
+  filter: brightness(1.12);
+  box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+}
+.btn-export-report:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .btn-submit {
   padding: 0.6rem 1.5rem;
   border: none;
