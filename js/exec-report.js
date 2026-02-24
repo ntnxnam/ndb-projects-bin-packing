@@ -59,7 +59,7 @@ export async function generateExecReport(ctx) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor('#ffffff');
-  doc.text('NDB 3.0 — Executive Schedule Report', margin, 36);
+  doc.text('NDB 3.0 - Executive Schedule Report', margin, 36);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor('#94a3b8');
@@ -79,7 +79,7 @@ export async function generateExecReport(ctx) {
     `Start: ${formatDate(startDate)}`,
     `Target: ${formatDate(endDate)}`,
     `Projects: ${projects.length}`,
-  ].join('   •   ');
+  ].join('   |   ');
   doc.text(paramStr, margin + 10, y + 18);
   y += 40;
 
@@ -107,27 +107,35 @@ export async function generateExecReport(ctx) {
   }
   const avgUtil = Math.round(sumUtil / totalMonths);
 
+  const targetMonths = monthsBetween(startDate, endDate);
+  const overrun = timelineMonths > targetMonths;
   const cards = [
-    { label: 'Timeline',       value: `${timelineMonths} months`, color: C.accent },
-    { label: 'Avg Utilization', value: `${avgUtil}%`,              color: avgUtil > 85 ? C.red : avgUtil > 70 ? C.amber : C.green },
-    { label: 'Long Poles',     value: `${longPoles.length}`,      color: longPoles.length > 3 ? C.amber : C.green },
-    { label: 'Past Target',    value: `${pastDeadline.length}`,   color: pastDeadline.length > 0 ? C.red : C.green },
+    { label: 'Target',          value: `${targetMonths} mo`,  color: C.accent },
+    { label: 'Scheduled',       value: `${timelineMonths} mo`, color: overrun ? C.red : C.green, sub: overrun ? `+${timelineMonths - targetMonths} mo overrun` : 'On track' },
+    { label: 'Avg Utilization', value: `${avgUtil}%`,          color: avgUtil > 85 ? C.red : avgUtil > 70 ? C.amber : C.green },
+    { label: 'Long Poles',      value: `${longPoles.length}`,  color: longPoles.length > 3 ? C.amber : C.green },
+    { label: 'Past Target',     value: `${pastDeadline.length}`, color: pastDeadline.length > 0 ? C.red : C.green },
   ];
-  const cardW = (contentW - 18) / 4;
+  const cardW = (contentW - 24) / 5;
   const cardH = 52;
   cards.forEach((card, i) => {
     const cx = margin + i * (cardW + 6);
     doc.setFillColor('#ffffff');
     doc.setDrawColor(C.divider);
     doc.roundedRect(cx, y, cardW, cardH, 4, 4, 'FD');
-    doc.setFontSize(22);
+    doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(card.color);
-    doc.text(card.value, cx + cardW / 2, y + 24, { align: 'center' });
-    doc.setFontSize(8);
+    doc.text(card.value, cx + cardW / 2, y + 22, { align: 'center' });
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(C.muted);
-    doc.text(card.label, cx + cardW / 2, y + 40, { align: 'center' });
+    doc.text(card.label, cx + cardW / 2, y + 34, { align: 'center' });
+    if (card.sub) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(card.color);
+      doc.text(card.sub, cx + cardW / 2, y + 44, { align: 'center' });
+    }
   });
   y += cardH + 14;
 
@@ -241,8 +249,8 @@ export async function generateExecReport(ctx) {
   }
 
   const insightLines = [];
-  if (highMonths.length) insightLines.push({ dot: C.red, text: `High utilization (>85%): ${highMonths.slice(0, 6).join(', ')}${highMonths.length > 6 ? '…' : ''}` });
-  if (lowMonths.length) insightLines.push({ dot: C.green, text: `Capacity available (<50%): ${lowMonths.slice(0, 6).join(', ')}${lowMonths.length > 6 ? '…' : ''}` });
+  if (highMonths.length) insightLines.push({ dot: C.red, text: `High utilization (>85%): ${highMonths.slice(0, 6).join(', ')}${highMonths.length > 6 ? '...' : ''}` });
+  if (lowMonths.length) insightLines.push({ dot: C.green, text: `Capacity available (<50%): ${lowMonths.slice(0, 6).join(', ')}${lowMonths.length > 6 ? '...' : ''}` });
   insightLines.push({ dot: C.accent, text: `Average utilization: ${avgUtil}% across ${totalMonths} months` });
 
   for (const ins of insightLines) {
@@ -259,7 +267,7 @@ export async function generateExecReport(ctx) {
   if (longPoles.length === 0) {
     doc.setFontSize(8);
     doc.setTextColor(C.muted);
-    doc.text('No long poles — all projects finish well before timeline end.', colRight, yRight + 6);
+    doc.text('No long poles -- all projects finish well before timeline end.', colRight, yRight + 6);
     yRight += 14;
   } else {
     yRight = drawProjectTable(doc, longPoles, colRight, yRight, halfW, endDate);
@@ -273,7 +281,7 @@ export async function generateExecReport(ctx) {
   if (pastDeadline.length === 0) {
     doc.setFontSize(8);
     doc.setTextColor(C.green);
-    doc.text('All projects finish within target — no action needed.', colRight, yRight + 4);
+    doc.text('All projects finish within target -- no action needed.', colRight, yRight + 4);
     yRight += 14;
   } else {
     yRight = drawProjectTable(doc, pastDeadline, colRight, yRight, halfW, endDate);
@@ -321,7 +329,7 @@ export async function generateExecReport(ctx) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(C.muted);
-    doc.text(`NDB 3.0 Executive Report  •  Page ${i} of ${totalPages}`, pageW / 2, pageH - 16, { align: 'center' });
+    doc.text(`NDB 3.0 Executive Report  |  Page ${i} of ${totalPages}`, pageW / 2, pageH - 16, { align: 'center' });
   }
 
   /* Download */
@@ -376,22 +384,22 @@ function drawProjectTable(doc, entries, x, y, width, endDate) {
     }
     doc.setTextColor(C.body);
     cx = x + 3;
-    doc.text(String(p.rowNumber ?? '—'), cx, y + 7); cx += cols[0].w;
-    const summary = (p.summary || '').slice(0, 45) + ((p.summary || '').length > 45 ? '…' : '');
+    doc.text(String(p.rowNumber ?? '-'), cx, y + 7); cx += cols[0].w;
+    const summary = (p.summary || '').slice(0, 45) + ((p.summary || '').length > 45 ? '...' : '');
     doc.text(summary, cx, y + 7); cx += cols[1].w;
     doc.text((p.feat || '').slice(0, 12), cx, y + 7); cx += cols[2].w;
-    const endStr = e.endDate ? formatDate(e.endDate) : '—';
+    const endStr = e.endDate ? formatDate(e.endDate) : '-';
     const isPast = endDate && e.endDate && e.endDate.getTime() > endDate.getTime();
     doc.setTextColor(isPast ? C.red : C.body);
     doc.text(endStr, cx, y + 7); cx += cols[3].w;
     doc.setTextColor(C.body);
     const fte = e.fte ?? totalResources(p);
-    doc.text(fte > 0 ? fte.toFixed(1) : '—', cx, y + 7);
+    doc.text(fte > 0 ? fte.toFixed(1) : '-', cx, y + 7);
     y += 12;
   }
   if (entries.length > maxRows) {
     doc.setTextColor(C.muted);
-    doc.text(`… and ${entries.length - maxRows} more`, x + 3, y + 7);
+    doc.text(`... and ${entries.length - maxRows} more`, x + 3, y + 7);
     y += 12;
   }
   return y;
@@ -457,17 +465,17 @@ function drawFullProjectTable(doc, schedule, projects, x, startY, width, pageH, 
     doc.setTextColor(C.body);
     let cx = x + 2;
     doc.text(String(p.rowNumber ?? ''), cx, y + 6); cx += cols[0].w;
-    const summary = (p.summary || '').slice(0, 55) + ((p.summary || '').length > 55 ? '…' : '');
+    const summary = (p.summary || '').slice(0, 55) + ((p.summary || '').length > 55 ? '...' : '');
     doc.text(summary, cx, y + 6); cx += cols[1].w;
     doc.text((p.feat || '').slice(0, 14), cx, y + 6); cx += cols[2].w;
-    doc.text(p.sizingLabel ? p.sizingLabel.replace(/\s*\(.*\)/, '') : '—', cx, y + 6); cx += cols[3].w;
-    doc.text(p.durationMonths != null ? `${p.durationMonths} mo` : '—', cx, y + 6); cx += cols[4].w;
+    doc.text(p.sizingLabel ? p.sizingLabel.replace(/\s*\(.*\)/, '') : '-', cx, y + 6); cx += cols[3].w;
+    doc.text(p.durationMonths != null ? `${p.durationMonths} mo` : '-', cx, y + 6); cx += cols[4].w;
     const fte = e.fte ?? totalResources(p);
-    doc.text(fte > 0 ? fte.toFixed(1) : '—', cx, y + 6); cx += cols[5].w;
-    doc.text(e.startDate ? formatDate(e.startDate) : '—', cx, y + 6); cx += cols[6].w;
+    doc.text(fte > 0 ? fte.toFixed(1) : '-', cx, y + 6); cx += cols[5].w;
+    doc.text(e.startDate ? formatDate(e.startDate) : '-', cx, y + 6); cx += cols[6].w;
     const isPast = endDate && e.endDate && e.endDate.getTime() > endDate.getTime();
     doc.setTextColor(isPast ? C.red : C.body);
-    doc.text(e.endDate ? formatDate(e.endDate) : '—', cx, y + 6); cx += cols[7].w;
+    doc.text(e.endDate ? formatDate(e.endDate) : '-', cx, y + 6); cx += cols[7].w;
     doc.setTextColor(C.body);
     const completedPct = p.completedPct ?? 0;
     const status = completedPct > 0 ? `${completedPct}%` : (e.inProgress ? 'Active' : 'Planned');
@@ -502,7 +510,7 @@ function buildRecommendations(schedule, endDate, capacityPct, numFTEs, longPoles
     if (addPeople.length > 0) {
       recs.push({
         color: C.heading,
-        text: `To fit release: add people to ${addPeople.slice(0, 5).map(a => `Sl ${a.slNo} (+${a.extra}→${a.needed})`).join(', ')}${addPeople.length > 5 ? '…' : ''}.`,
+        text: `To fit release: add people to ${addPeople.slice(0, 5).map(a => `Sl ${a.slNo} (+${a.extra} to ${a.needed})`).join(', ')}${addPeople.length > 5 ? '...' : ''}.`,
       });
     }
     recs.push({
