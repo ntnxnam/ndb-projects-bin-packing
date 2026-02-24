@@ -90,21 +90,50 @@ Or pass any CSV path:
 node scripts/prepare-data.js /path/to/NDB-2026-IndiaOffsite-GlobalPriroritization - Sheet1.csv
 ```
 
+## Project categories (representation & ranking)
+
+The app treats four kinds of projects; **ranking** uses only **"Dependency Numbers (Comma Separated List)"** (and dev-blocker marking there). Resource at start is computed in schedule order for capacity packing and the Gantt.
+
+| Category | Description | Scheduleable unit | Ranking | Resource at start |
+|----------|-------------|-------------------|--------|-------------------|
+| **1. Uber, effort together** | One pool (e.g. IAMv2); sub-projects share FTE, effort called out together. | One group (parent + children). | Group’s Dependency Numbers; inside group by dependency. | Group’s FTE for full window. |
+| **2. Same FEAT, own effort** | Same FEAT (e.g. Go Based WFs 33–36); each row has its own Dev Resources. | Each row. | Each row’s Dependency Numbers. | Each row’s FTE at its start. |
+| **3. Phase ~N/M, multiple efforts** | Phase line with "~N people/M months" but each content row has its own effort. | Each content row (phase is context only). | Each row’s Dependency Numbers. | Each row’s FTE at its start. |
+| **4. Single line** | One row, no sub-projects (e.g. Error Code Framework). | That row. | That row’s Dependency Numbers. | That row’s FTE at its start. |
+
+- **Continuation rows:** CSV rows with **no Sl No** (multiple lines only for DEPENDENCY / One line dependency description) are merged into the previous project: their Dependency Numbers are appended to that project; no extra project is created.
+- **Duration:** Number of months = Total person-months ÷ (Dev resources × Capacity %), with Capacity % from the UI (e.g. 60%).
+
 ## Repo layout
 
 ```
-├── index.html          # Single-page app and controls
+├── index.html          # 2. Schedule (Gantt, spare capacity, long poles)
+├── upload.html         # 1. Refresh CSV (upload, verify table, export)
+├── dependencies.html  # 3. Dependencies (graph)
+├── bottom-up.html      # 4. Bottom up (CSV vs schedule challenges)
 ├── css/main.css        # Layout and Gantt styles
 ├── js/
-│   ├── app.js          # Load data, bind controls, render both views
-│   ├── bin-packing.js  # Sequential and capacity-based packing
-│   ├── gantt.js        # Timeline axis and bar rendering
-│   └── sizing.js       # Sizing map and helpers
+│   ├── config.js       # Constants, storage keys
+│   ├── logger.js       # Centralized logging
+│   ├── utils.js        # DOM/format helpers (getEl, formatDate, escapeHtml, …)
+│   ├── state.js        # localStorage: getProjects, setProjects, getFilters, setFilters
+│   ├── filters.js      # filterByCommitment, filterByPriority, tagPriorityTiers
+│   ├── sizing.js       # SIZING_MONTHS, durationMonths, effectiveDurationMonths, totalResources
+│   ├── resource-groups.js # detectResourceGroups (feat-capacity, uber-by-FEAT, summary-prefix)
+│   ├── ranking.js      # orderByDependencyAndSize, getDependentsCounts, getRankLabel, orderScheduleByBlockersFirst
+│   ├── bin-packing.js  # packWithCapacity, getScheduleEnd, getLongPoles, getDependentsCounts
+│   ├── csv-parser.js   # parseCSV, csvToProjects, detectResourceGroups re-export
+│   ├── gantt.js        # renderGantt, renderTimelineAxis
+│   ├── dependency-graph.js # renderDependencyGraph
+│   ├── schedule.js     # Schedule page entry
+│   ├── upload.js       # Upload page entry
+│   ├── dependencies.js # Dependencies page entry
+│   └── bottom-up.js    # Bottom-up page entry
 ├── data/
 │   ├── sheet1.csv      # Optional: your Sheet1 export
-│   └── projects.json   # Generated project list (used by the app)
+│   └── projects.json  # Generated project list (used by the app)
 ├── scripts/
-│   └── prepare-data.js # CSV → projects.json
+│   └── prepare-data.js # CSV → projects.json (Node)
 └── README.md
 ```
 

@@ -1,20 +1,20 @@
 /**
  * Parse prioritization CSV (same columns as Sheet1 / prepare-data.js).
  * Used by the Upload CSV tab to refresh project data without changing column expectations.
+ * @module csv-parser
  */
 
-export const SIZING_MONTHS = {
-  'None': 0,
-  'XS (1 month)': 1,
-  'S (1-3 months)': 3,
-  'M (3-5 months)': 5,
-  'L (5-8 months)': 8,
-  'XL (8-13 months)': 13,
-  'XXL (13+ months)': 21,
-  '3L (21+ months)': 34,
-  '4L (34+ months)': 55,
-};
+import { SIZING_MONTHS } from './sizing.js';
+import { detectResourceGroups } from './resource-groups.js';
+import { logger } from './logger.js';
 
+export { SIZING_MONTHS };
+
+/**
+ * Parse raw CSV text into rows of cells (handles quoted fields and commas).
+ * @param {string} text - Raw CSV string.
+ * @returns {string[][]}
+ */
 export function parseCSV(text) {
   const rows = [];
   let i = 0;
@@ -120,6 +120,7 @@ export function csvToProjects(csvText) {
   const iStatus = idx('STATUS');
   const iCommit = idx('3.0 Commitment Status');
   const iDevResources = idx('Dev Resources required for max parallization');
+  const iDevResources60 = header.findIndex(h => (h || '').trim().indexOf('Dev Resources required for max parallization and 60% productivity') !== -1);
   const iSizing = idx('sizing (refer sheet 2 for guidance)');
   const iDri = idx('DRI');
   const iDependencyNumbers = idx('Dependency Numbers (Comma Separated List)');
@@ -146,6 +147,12 @@ export function csvToProjects(csvText) {
     let devResources = parseFloat(String(row[iDevResources] || '').replace(/,/g, ''));
     if (Number.isNaN(devResources) || devResources < 0) devResources = 0;
 
+    let devResources60 = null;
+    if (iDevResources60 >= 0 && row[iDevResources60]) {
+      const val = parseFloat(String(row[iDevResources60]).replace(/,/g, ''));
+      if (!Number.isNaN(val) && val >= 0) devResources60 = Math.round(val * 100) / 100;
+    }
+
     const feat = (row[iFeat] || '').trim();
     const summary = (row[iSummary] || '').trim().replace(/\s+/g, ' ') || feat || '';
     const dri = (row[iDri] || '').trim();
@@ -154,8 +161,10 @@ export function csvToProjects(csvText) {
 
     const rowNumRaw = (row[iFirstCol] || '').trim();
     const rowNumber = rowNumRaw && !Number.isNaN(parseInt(rowNumRaw, 10)) ? parseInt(rowNumRaw, 10) : null;
-    const assignedRowNumber = rowNumber != null ? rowNumber : 9000 + projects.length;
     const { rowNumbers: dependencyRowNumbers, devBlockers: dependencyDevBlockers } = parseDependencyNumbersAndBlockers(row[iDependencyNumbers]);
+
+    /* Every row is a project. Rows without Sl No get assigned row number 9000 + index. */
+    const assignedRowNumber = rowNumber != null ? rowNumber : 9000 + projects.length;
 
     const totalPersonMonthsRaw = _totalPersonMonthsCol >= 0 ? (row[_totalPersonMonthsCol] || '').trim() : '';
     const additionalResources = iAdditionalResources >= 0 ? (row[iAdditionalResources] || '').trim() : '';
@@ -211,109 +220,17 @@ export function csvToProjects(csvText) {
       dependencyRowNumbers,
       dependencyDevBlockers: dependencyDevBlockers || [],
       totalPersonMonths: totalPersonMonthsRaw,
+      totalPersonMonthsNum: Number.isNaN(totalPersonMonthsNum) ? null : totalPersonMonthsNum,
+      totalResources60: devResources60,
       additionalResources,
       sizingComment,
     });
   }
 
   detectResourceGroups(projects);
+  logger.debug('csv-parser.csvToProjects: parsed', projects.length, 'projects');
   return { projects, error: null };
 }
 
-/**
- * Detect resource groups using two complementary strategies:
- *
- * Strategy 1 — Feat-capacity groups:
- *   The FEAT column contains "~N people/M months" (e.g. "Go Based WF Phase 2: ~18 people/10 months").
- *   The parent row's totalResources and durationMonths are overridden with the parsed N and M.
- *   Subsequent rows with empty feat field are children until the next non-empty feat row.
- *
- * Strategy 2 — Summary-prefix groups:
- *   Multiple projects share a summary prefix (text before " - ").
- *   Exactly one has totalResources > 0 (parent), the rest have totalResources = 0 (children).
- *   Example: "IAMv2 - User onboarding" (parent) + "IAMv2 - Session mgmt" (child).
- *
- * Children share the parent's FTE pool — they don't consume additional org capacity.
- * Mutates projects in place, adding resourceGroup* fields.
- */
-export function detectResourceGroups(projects) {
-  const grouped = new Set();
-
-  /* --- Strategy 1: feat-capacity groups ("~N people/M months" in feat column) --- */
-  for (let i = 0; i < projects.length; i++) {
-    const p = projects[i];
-    if (grouped.has(p.rowNumber)) continue;
-    const match = (p.feat || '').match(/~(\d+)\s*people\s*\/\s*(\d+)\s*months/i);
-    if (!match) continue;
-
-    const groupFte = parseInt(match[1], 10);
-    const groupDuration = parseInt(match[2], 10);
-    const parentDri = (p.dri || '').trim().toLowerCase();
-    const children = [];
-    let j = i + 1;
-    while (j < projects.length && !(projects[j].feat || '').trim()) {
-      const childDri = (projects[j].dri || '').trim().toLowerCase();
-      if (childDri && parentDri && childDri !== parentDri) break;
-      children.push(projects[j]);
-      j++;
-    }
-    if (children.length === 0) continue;
-
-    /* If individual allocations sum to the annotated capacity, each sub-project
-       is independently staffed — not a shared pool. Skip grouping. */
-    const individualSum = (p.totalResources || 0) + children.reduce((s, c) => s + (c.totalResources || 0), 0);
-    if (individualSum === groupFte) continue;
-
-    const groupId = `feat-group-${p.rowNumber}`;
-    p.resourceGroupId = groupId;
-    p.totalResources = groupFte;
-    p.durationMonths = groupDuration;
-    p.resourceGroupChildRows = children.map(c => c.rowNumber);
-    p.resourceGroupCapacityNote = `~${groupFte} people/${groupDuration} months (from FEAT column)`;
-    grouped.add(p.rowNumber);
-
-    for (const child of children) {
-      child.resourceGroupId = groupId;
-      child.isResourceGroupChild = true;
-      child.resourceGroupParentRow = p.rowNumber;
-      grouped.add(child.rowNumber);
-    }
-  }
-
-  /* --- Strategy 2: summary-prefix groups (IAMv2-style) --- */
-  const prefixOf = (summary) => {
-    const idx = summary.indexOf(' - ');
-    return idx >= 0 ? summary.slice(0, idx).trim() : null;
-  };
-
-  const byPrefix = new Map();
-  for (const p of projects) {
-    if (grouped.has(p.rowNumber)) continue;
-    const prefix = prefixOf(p.summary);
-    if (!prefix) continue;
-    if (!byPrefix.has(prefix)) byPrefix.set(prefix, []);
-    byPrefix.get(prefix).push(p);
-  }
-
-  for (const [prefix, members] of byPrefix) {
-    if (members.length < 2) continue;
-    const parents = members.filter(p => p.totalResources > 0);
-    const children = members.filter(p => p.totalResources <= 0);
-    if (parents.length !== 1 || children.length === 0) continue;
-
-    const parent = parents[0];
-    const groupId = `group-${parent.rowNumber}`;
-    const childRowNumbers = children.map(c => c.rowNumber);
-
-    parent.resourceGroupId = groupId;
-    parent.resourceGroupChildRows = childRowNumbers;
-    grouped.add(parent.rowNumber);
-
-    for (const child of children) {
-      child.resourceGroupId = groupId;
-      child.isResourceGroupChild = true;
-      child.resourceGroupParentRow = parent.rowNumber;
-      grouped.add(child.rowNumber);
-    }
-  }
-}
+// Re-export so callers can import detectResourceGroups from csv-parser.
+export { detectResourceGroups } from './resource-groups.js';

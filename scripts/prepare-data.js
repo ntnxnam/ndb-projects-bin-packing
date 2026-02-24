@@ -246,7 +246,9 @@ function main() {
     const individualSum = (p.totalResources || 0) + children.reduce((s, c) => s + (c.totalResources || 0), 0);
     if (individualSum === groupFte) continue;
     const groupId = `feat-group-${p.rowNumber}`;
+    const bucketName = (p.feat || '').trim().replace(/\s*~.*$/, '').trim() || `#${p.rowNumber}`;
     p.resourceGroupId = groupId;
+    p.resourceGroupName = bucketName;
     p.totalResources = groupFte;
     p.durationMonths = groupDuration;
     p.resourceGroupChildRows = children.map(c => c.rowNumber);
@@ -254,6 +256,7 @@ function main() {
     grouped.add(p.rowNumber);
     for (const child of children) {
       child.resourceGroupId = groupId;
+      child.resourceGroupName = bucketName;
       child.isResourceGroupChild = true;
       child.resourceGroupParentRow = p.rowNumber;
       grouped.add(child.rowNumber);
@@ -281,11 +284,14 @@ function main() {
     const parent = parents[0];
     const groupId = `group-${parent.rowNumber}`;
     const childRowNumbers = children.map(c => c.rowNumber);
+    const bucketName = prefix;
     parent.resourceGroupId = groupId;
+    parent.resourceGroupName = bucketName;
     parent.resourceGroupChildRows = childRowNumbers;
     grouped.add(parent.rowNumber);
     for (const child of children) {
       child.resourceGroupId = groupId;
+      child.resourceGroupName = bucketName;
       child.isResourceGroupChild = true;
       child.resourceGroupParentRow = parent.rowNumber;
       grouped.add(child.rowNumber);

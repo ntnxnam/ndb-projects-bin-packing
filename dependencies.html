@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3. Dependencies – NDB Projects</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div class="app">
+    <h1>NDB 3.0 – Project bin packing</h1>
+
+    <nav class="tabs" role="tablist">
+      <a href="upload.html" class="tab" role="tab">1. Refresh CSV</a>
+      <a href="index.html" class="tab" role="tab">2. Schedule</a>
+      <a href="dependencies.html" class="tab active" role="tab" aria-current="page">3. Dependencies</a>
+      <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
+    </nav>
+
+    <div class="tab-panel" role="main">
+      <section class="dependency-graph-section" aria-label="Dependency graph">
+        <h2>Dependency graph</h2>
+        <p class="dependency-graph-desc">Who blocks whom: arrows point from a dependency to the project that cannot complete until it's checked in. Same filters as Schedule.</p>
+        <div class="controls bottom-up-controls">
+          <div class="control-group">
+            <label for="depCommitment">3.0 Commitment Status</label>
+            <select id="depCommitment">
+              <option value="">All</option>
+              <option value="Committed" selected>Committed</option>
+              <option value="Approved">Approved</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="depPriority">Priority</label>
+            <select id="depPriority">
+              <option value="">All</option>
+              <option value="P0" selected>P0</option>
+              <option value="P1">P1</option>
+            </select>
+          </div>
+        </div>
+        <div id="dependencyGraph" class="dependency-graph-container"></div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="js/dependencies.js"></script>
+</body>
+</html>

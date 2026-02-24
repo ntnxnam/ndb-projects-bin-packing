@@ -7,13 +7,16 @@ import { packWithCapacity, getScheduleEnd, orderByDependencyAndSize, getLongPole
 import { renderGantt, renderTimelineAxis } from './gantt.js';
 import { renderDependencyGraph } from './dependency-graph.js';
 import { csvToProjects, detectResourceGroups } from './csv-parser.js';
-import { totalResources } from './sizing.js';
-
-const DEFAULT_START = '2026-04-01';
-const DEFAULT_END = '2027-01-30';
-const DEFAULT_NUM_FTES = 100;
-const DEFAULT_CAPACITY_PCT = 60;
-const UPLOAD_STORAGE_KEY = 'ndb-projects-upload';
+import { totalResources, SIZING_MONTHS } from './sizing.js';
+import {
+  DEFAULT_START,
+  DEFAULT_END,
+  DEFAULT_NUM_FTES,
+  DEFAULT_CAPACITY_PCT,
+  UPLOAD_STORAGE_KEY,
+  NUM_FTES_MIN,
+  NUM_FTES_MAX,
+} from './config.js';
 
 const _elCache = {};
 function getEl(id) {
@@ -40,7 +43,7 @@ function getState() {
   const commitment = (getEl('commitment')?.value || '').trim();
   const priority = (getEl('priority')?.value || '').trim();
   const numFTEsRaw = getEl('numFTEs')?.value?.trim();
-  const numFTEs = Math.max(1, Math.min(500, parseInt(numFTEsRaw, 10) || DEFAULT_NUM_FTES));
+  const numFTEs = Math.max(NUM_FTES_MIN, Math.min(NUM_FTES_MAX, parseInt(numFTEsRaw, 10) || DEFAULT_NUM_FTES));
   const capacityPctRaw = (getEl('capacityPerFte')?.value ?? '').trim();
   const capacityPct = Math.max(0.1, Math.min(100, parseFloat(capacityPctRaw) || DEFAULT_CAPACITY_PCT));
   const capacity = (numFTEs * capacityPct) / 100;
@@ -128,7 +131,12 @@ function renderUploadTable(projectList) {
     const isChild = !!p.isResourceGroupChild;
     const isParent = !!(p.resourceGroupChildRows?.length);
     const rankText = isInProgress ? '0 (In Progress)' : blockCount > 0 ? `1 (${blockCount})` : plainCount > 0 ? `2 (${plainCount})` : '3';
-    const groupNote = isChild ? ` [↳ group of ${p.resourceGroupParentRow}]` : isParent ? ` [📦 group: ${p.resourceGroupChildRows.length} sub]` : '';
+    const bucketName = p.resourceGroupName || '';
+    const groupNote = isChild
+      ? (bucketName ? ` [↳ ${bucketName}]` : ` [↳ group of ${p.resourceGroupParentRow}]`)
+      : isParent
+        ? (bucketName ? ` [📦 ${bucketName}: ${p.resourceGroupChildRows.length} sub]` : ` [📦 group: ${p.resourceGroupChildRows.length} sub]`)
+        : '';
     const statusText = (p.status || '').trim() || '—';
     const tr = document.createElement('tr');
     if (isInProgress) tr.style.background = 'rgba(210, 153, 34, 0.10)';
@@ -163,6 +171,108 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
+}
+
+function monthDiff(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+  const s = startDate.getTime ? startDate : new Date(startDate);
+  const e = endDate.getTime ? endDate : new Date(endDate);
+  return Math.max(0, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()));
+}
+
+/**
+ * Bottom-up scrutinizer: juxtapose CSV (what you said) with schedule (what logic says) and challenge mismatches.
+ */
+function renderBottomUpTable(projectList, schedule) {
+  const container = getEl('bottomUpTableContainer');
+  if (!container) return;
+  const ordered = orderByDependencyAndSize(projectList || []);
+  const scheduleByRow = new Map();
+  if (schedule && schedule.length) {
+    for (const entry of schedule) {
+      const p = entry.project;
+      if (p && p.rowNumber != null) scheduleByRow.set(p.rowNumber, entry);
+    }
+  }
+
+  container.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = 'verify-table bottom-up-table';
+  table.setAttribute('role', 'table');
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th scope="col">Sl No</th>
+        <th scope="col">Summary</th>
+        <th scope="col">Total Months (1p)</th>
+        <th scope="col">Dev (people)</th>
+        <th scope="col">CSV implied (effort÷people)</th>
+        <th scope="col">Blocked by</th>
+        <th scope="col">Scheduled start</th>
+        <th scope="col">Scheduled end</th>
+        <th scope="col">Schedule duration</th>
+        <th scope="col">Challenge</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector('tbody');
+  for (const p of ordered) {
+    const totalPersonMonthsNum = p.totalPersonMonthsNum != null
+      ? p.totalPersonMonthsNum
+      : (p.totalPersonMonths && String(p.totalPersonMonths).trim()) ? parseFloat(String(p.totalPersonMonths).replace(/,/g, '')) : null;
+    const devR = totalResources(p);
+    const realisticDuration = (totalPersonMonthsNum != null && totalPersonMonthsNum > 0 && devR > 0)
+      ? Math.ceil(totalPersonMonthsNum / devR)
+      : null;
+    const monthsFromSizing = (p.sizingLabel && SIZING_MONTHS[p.sizingLabel] != null) ? SIZING_MONTHS[p.sizingLabel] : null;
+    const minPeopleFromSizing = (totalPersonMonthsNum != null && totalPersonMonthsNum > 0 && monthsFromSizing != null && monthsFromSizing > 0)
+      ? Math.ceil(totalPersonMonthsNum / monthsFromSizing)
+      : null;
+
+    const depRows = (p.dependencyRowNumbers || []).filter(r => r !== p.rowNumber);
+    const blockers = new Set(p.dependencyDevBlockers || []);
+    const blockedBy = depRows.length === 0 ? '—' : depRows.map(r => blockers.has(r) ? `${r} (dev-blocker)` : String(r)).join(', ');
+
+    const entry = scheduleByRow.get(p.rowNumber);
+    const scheduledStart = entry ? formatDate(entry.startDate) : '—';
+    const scheduledEnd = entry ? formatDate(entry.endDate) : '—';
+    const scheduledDuration = entry ? monthDiff(entry.startDate, entry.endDate) : null;
+
+    const challenges = [];
+    if (scheduledDuration != null && realisticDuration != null && scheduledDuration > realisticDuration) {
+      challenges.push(`You said ${realisticDuration} mo (effort÷people). Schedule gives ${scheduledDuration} mo — delayed by deps or capacity. Plan for ${scheduledDuration}.`);
+    }
+    if (realisticDuration != null && monthsFromSizing != null && monthsFromSizing > 0 && realisticDuration > monthsFromSizing) {
+      challenges.push(`Effort implies ${realisticDuration} mo; sizing says up to ${monthsFromSizing} mo. Scope grew or sizing wrong.`);
+    }
+    if (scheduledDuration != null && monthsFromSizing != null && monthsFromSizing > 0 && scheduledDuration > monthsFromSizing) {
+      challenges.push(`Schedule runs ${scheduledDuration} mo; sizing says up to ${monthsFromSizing} mo. Sizing too optimistic.`);
+    }
+    if (minPeopleFromSizing != null && devR > 0 && devR < minPeopleFromSizing) {
+      challenges.push(`To hit sizing (${monthsFromSizing} mo) need ≥${minPeopleFromSizing} people; you have ${devR}. Understaffed?`);
+    }
+    const challengeText = challenges.length > 0 ? challenges.join(' ') : '—';
+    const challengeClass = challenges.length > 0 ? 'bottom-up-challenge' : '';
+
+    const tr = document.createElement('tr');
+    if (challenges.length > 0) tr.classList.add('bottom-up-row-warn');
+    if (p.isResourceGroupChild) tr.style.background = 'rgba(130, 160, 200, 0.08)';
+    tr.innerHTML = `
+      <td>${escapeHtml(String(p.rowNumber ?? '—'))}</td>
+      <td>${escapeHtml((p.summary || '').slice(0, 70) + ((p.summary || '').length > 70 ? '…' : ''))}</td>
+      <td>${formatNum(totalPersonMonthsNum)}</td>
+      <td>${formatNum(devR)}</td>
+      <td>${realisticDuration != null ? realisticDuration + ' mo' : '—'}</td>
+      <td>${escapeHtml(blockedBy)}</td>
+      <td>${escapeHtml(scheduledStart)}</td>
+      <td>${escapeHtml(scheduledEnd)}</td>
+      <td>${scheduledDuration != null ? scheduledDuration + ' mo' : '—'}</td>
+      <td class="${challengeClass}" title="${escapeHtml(challengeText)}">${escapeHtml(challenges.length > 0 ? challenges[0] + (challenges.length > 1 ? ' …' : '') : '—')}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  container.appendChild(table);
 }
 
 function norm(s) {
@@ -200,6 +310,39 @@ function tagPriorityTiers(projectList) {
     if (!p.isResourceGroupChild) continue;
     p._tier = parentTierByRow.get(p.resourceGroupParentRow) ?? 2;
   }
+}
+
+/**
+ * Reorder schedule for display so dev-blockers (projects others wait on) appear on top.
+ * Keeps resource-group parent+children together as blocks.
+ */
+function orderScheduleByBlockersFirst(schedule, dependentsByProject) {
+  if (!schedule?.length) return schedule;
+  const blocks = [];
+  for (let i = 0; i < schedule.length; i++) {
+    const entry = schedule[i];
+    if (entry.isResourceGroupChild) {
+      blocks[blocks.length - 1].entries.push(entry);
+    } else {
+      blocks.push({ entries: [entry] });
+    }
+  }
+  const deps = dependentsByProject || new Map();
+  blocks.sort((a, b) => {
+    const mainA = a.entries[0]?.project;
+    const mainB = b.entries[0]?.project;
+    const rowA = mainA?.rowNumber;
+    const rowB = mainB?.rowNumber;
+    const infoA = rowA != null ? deps.get(rowA) : null;
+    const infoB = rowB != null ? deps.get(rowB) : null;
+    const blockerCountA = infoA?.devBlockerFor?.length ?? 0;
+    const blockerCountB = infoB?.devBlockerFor?.length ?? 0;
+    if (blockerCountB !== blockerCountA) return blockerCountB - blockerCountA;
+    const plainCountA = infoA?.plainDepFor?.length ?? 0;
+    const plainCountB = infoB?.plainDepFor?.length ?? 0;
+    return plainCountB - plainCountA;
+  });
+  return blocks.flatMap(b => b.entries);
 }
 
 /** Map rowNumber -> { devBlockerFor: number[], plainDepFor: number[] } for tooltips. */
@@ -400,9 +543,10 @@ function render() {
   if (ganttSection) ganttSection.style.display = 'block';
   if (submitHint) submitHint.style.display = 'none';
 
+  /* Schedule over a long horizon so bars show actual end dates; user end date is viewport + deadline only */
   const farEnd = new Date(state.startDate);
   farEnd.setFullYear(farEnd.getFullYear() + 5);
-  const schedule = packWithCapacity(filtered, state.startDate, farEnd, state.capacity);
+  const schedule = packWithCapacity(filtered, state.startDate, farEnd, state.capacity, state.capacityPct);
   const timelineEnd = getScheduleEnd(schedule);
   const timeline = { startDate: state.startDate, endDate: timelineEnd || state.startDate };
 
@@ -418,10 +562,13 @@ function render() {
     const rangeText = timelineEnd
       ? `Timeline: ${formatDate(state.startDate)} → ${formatDate(timelineEnd)} · Viewport: ${formatDate(state.startDate)} → ${formatDate(state.endDate)}`
       : 'No projects in range.';
+    const extendedNote = timelineEnd && timelineEnd.getTime() > state.endDate.getTime()
+      ? ' (bar chart extends to actual finish — dependencies and capacity serialize work)'
+      : '';
     const countText = (state.commitment || state.priority) && projects.length > 0
       ? ` Showing ${filtered.length} of ${projects.length} projects.`
       : '';
-    scheduleSummary.textContent = rangeText + countText;
+    scheduleSummary.textContent = rangeText + extendedNote + countText;
     scheduleSummary.style.display = 'block';
   }
   if (ganttTitle) ganttTitle.textContent = 'Schedule';
@@ -436,9 +583,9 @@ function render() {
       childToParent.set(p.rowNumber, p.resourceGroupParentRow);
     }
   });
+  const displaySchedule = orderScheduleByBlockersFirst(schedule, dependentsByProject);
   const ax = getEl('ganttAxis');
   const chart = getEl('ganttChart');
-  const displaySchedule = schedule;
   if (ax) renderTimelineAxis(ax, timeline, { visibleRange });
   if (chart) renderGantt(chart, displaySchedule, timeline, {
     dependentsByProject,
@@ -447,6 +594,7 @@ function render() {
     capacityPct: state.capacityPct,
     visibleRange,
     deadlineDate: state.endDate,
+    labelsContainer: getEl('ganttLabels'),
   });
 
   const effectiveEnd = timelineEnd && timelineEnd.getTime() > state.endDate.getTime() ? timelineEnd : state.endDate;
@@ -459,7 +607,6 @@ function render() {
   const depGraphEl = getEl('dependencyGraph');
   if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), {
     childToParent,
-    groups: [[59, 60, 61, 62, 63, 64, 65, 66, 67, 104]],
   });
 }
 
@@ -530,9 +677,11 @@ function bindControls() {
   const ganttPanel = getEl('ganttPanel');
   const uploadPanel = getEl('uploadPanel');
   const dependenciesPanel = getEl('dependenciesPanel');
+  const bottomUpPanel = getEl('bottomUpPanel');
   if (ganttPanel) ganttPanel.style.display = 'none';
   if (uploadPanel) uploadPanel.style.display = '';
   if (dependenciesPanel) dependenciesPanel.style.display = 'none';
+  if (bottomUpPanel) bottomUpPanel.style.display = 'none';
   document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -580,13 +729,61 @@ function bindControls() {
           const depGraphEl = getEl('dependencyGraph');
           if (depGraphEl) renderDependencyGraph(depGraphEl, orderByDependencyAndSize(filtered), {
             childToParent,
-            groups: [[59, 60, 61, 62, 63, 64, 65, 66, 67, 104]],
           });
           setTimeout(showErrorLog, 100);
         }
       }
+      if (bottomUpPanel) {
+        bottomUpPanel.hidden = tab !== 'bottomup';
+        bottomUpPanel.style.display = tab === 'bottomup' ? '' : 'none';
+        if (tab === 'bottomup') {
+          const state = getState();
+          const buCommit = getEl('bottomUpCommitment');
+          const buPriority = getEl('bottomUpPriority');
+          if (buCommit && buCommit.value !== state.commitment) buCommit.value = state.commitment || '';
+          if (buPriority && buPriority.value !== state.priority) buPriority.value = state.priority || '';
+          runBottomUpRender();
+        }
+      }
     });
   });
+
+  function getBottomUpFilterState() {
+    const commitment = (getEl('bottomUpCommitment')?.value || '').trim();
+    const priority = (getEl('bottomUpPriority')?.value || '').trim();
+    return { commitment, priority };
+  }
+
+  function runBottomUpRender() {
+    let listToUse = projects && projects.length > 0 ? projects : null;
+    if (!listToUse || listToUse.length === 0) {
+      try {
+        const stored = localStorage.getItem(UPLOAD_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            detectResourceGroups(parsed);
+            listToUse = parsed;
+          }
+        }
+      } catch (_) {}
+    }
+    const { commitment, priority } = getBottomUpFilterState();
+    let filtered = listToUse ? filterByCommitment(listToUse, commitment) : [];
+    filtered = filterByPriority(filtered, priority);
+
+    const state = getState();
+    tagPriorityTiers(filtered);
+    const farEnd = new Date(state.startDate);
+    farEnd.setFullYear(farEnd.getFullYear() + 5);
+    const schedule = packWithCapacity(filtered, state.startDate, farEnd, state.capacity, state.capacityPct);
+    renderBottomUpTable(filtered, schedule);
+  }
+
+  const bottomUpCommitment = getEl('bottomUpCommitment');
+  const bottomUpPriority = getEl('bottomUpPriority');
+  if (bottomUpCommitment) bottomUpCommitment.addEventListener('change', runBottomUpRender);
+  if (bottomUpPriority) bottomUpPriority.addEventListener('change', runBottomUpRender);
 
   // Upload CSV: accept file → show Submit → on Submit show verification table
   const fileInput = getEl('csvFileInput');
@@ -800,6 +997,16 @@ function showErrorLog() {
 
 // Bind when DOM is ready so date/count inputs exist and listeners attach; then load data
 function init() {
+  // Apply config defaults so form reflects single source of truth
+  const numFTEsEl = getEl('numFTEs');
+  const capacityPerFteEl = getEl('capacityPerFte');
+  const startDateEl = getEl('startDate');
+  const endDateEl = getEl('endDate');
+  if (numFTEsEl) numFTEsEl.value = String(DEFAULT_NUM_FTES);
+  if (capacityPerFteEl) capacityPerFteEl.value = String(DEFAULT_CAPACITY_PCT);
+  if (startDateEl) startDateEl.value = DEFAULT_START;
+  if (endDateEl) endDateEl.value = DEFAULT_END;
+
   bindControls();
   loadProjects();
   setTimeout(showErrorLog, 500);

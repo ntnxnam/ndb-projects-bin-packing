@@ -6,6 +6,8 @@
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 52;
+const SL_LABEL_MAX = 32;
+const SUMMARY_MAX = 32;
 const LAYER_GAP = 80;
 const NODE_GAP = 20;
 const PAD = 28;
@@ -54,11 +56,16 @@ function renderDependencyGraphImpl(container, projects, options) {
     return p.rowNumber === canonical;
   });
   const children = (projects || []).filter(p => p.isResourceGroupChild);
-  const byRow = new Map(main.map(p => [p.rowNumber, p]));
+  /* All nodes: main + resource-group children (so shared-pool line items appear with their own deps) */
+  const byRow = new Map([...main.map(p => [p.rowNumber, p]), ...children.map(p => [p.rowNumber, p])]);
   const rankOrderIndex = new Map();
   main.forEach((p, i) => rankOrderIndex.set(p.rowNumber, i));
+  children.forEach(p => {
+    const parentRow = p.resourceGroupParentRow;
+    rankOrderIndex.set(p.rowNumber, (rankOrderIndex.get(parentRow) ?? 9999) * 10000 + (p.rowNumber ?? 0));
+  });
 
-  /* Effective dependencies per canonical row: aggregate from all in group + resource-group children */
+  /* Effective dependencies per row (main and child) for layer assignment and tooltips */
   const effectiveDepsByRow = new Map();
   for (const p of mainAll) {
     const canon = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
@@ -71,15 +78,14 @@ function renderDependencyGraphImpl(container, projects, options) {
     }
   }
   for (const p of children) {
-    const parentRow = p.resourceGroupParentRow;
-    if (parentRow == null) continue;
-    const canon = rowToCanonical.get(parentRow) ?? parentRow;
-    if (!byRow.has(canon)) continue;
-    let set = effectiveDepsByRow.get(canon);
-    if (!set) { set = new Set(); effectiveDepsByRow.set(canon, set); }
+    if (!byRow.has(p.rowNumber)) continue;
+    let set = effectiveDepsByRow.get(p.rowNumber);
+    if (!set) { set = new Set(); effectiveDepsByRow.set(p.rowNumber, set); }
     for (const orig of (p.dependencyRowNumbers || [])) {
-      const depRow = resolve(orig);
-      if (byRow.has(depRow) && depRow !== canon) set.add(depRow);
+      const depRow = childToParent.has(orig) ? childToParent.get(orig) : orig;
+      const resolved = rowToCanonical.get(depRow) ?? depRow;
+      if (byRow.has(resolved) && resolved !== p.rowNumber) set.add(resolved);
+      if (byRow.has(orig) && orig !== p.rowNumber) set.add(orig);
     }
   }
 
@@ -100,24 +106,38 @@ function renderDependencyGraphImpl(container, projects, options) {
     edgeBlocker.set(key, edgeBlocker.get(key) || isBlockerVal);
   }
 
+  /* Edges: dependency → dependent. Both main and children can be source or target. */
+  function depRowAsNode(orig) {
+    if (byRow.has(orig)) return orig;
+    const r = resolve(orig);
+    return byRow.has(r) ? r : null;
+  }
   for (const p of mainAll) {
     const toRow = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
     if (!byRow.has(toRow)) continue;
     for (const orig of (p.dependencyRowNumbers || [])) {
-      const depRow = resolve(orig);
-      if (depRow === toRow || !byRow.has(depRow)) continue;
-      addEdge(depRow, toRow, blockers(p).has(orig));
+      const fromRow = depRowAsNode(orig);
+      if (fromRow == null || fromRow === toRow) continue;
+      addEdge(fromRow, toRow, blockers(p).has(orig));
     }
   }
   for (const p of children) {
-    const parentRow = p.resourceGroupParentRow;
-    if (parentRow == null) continue;
-    const toRow = rowToCanonical.get(parentRow) ?? parentRow;
+    if (!byRow.has(p.rowNumber)) continue;
+    const toRow = p.rowNumber;
+    for (const orig of (p.dependencyRowNumbers || [])) {
+      const fromRow = depRowAsNode(orig);
+      if (fromRow == null || fromRow === toRow) continue;
+      addEdge(fromRow, toRow, blockers(p).has(orig));
+    }
+  }
+  /* Edges from children when others depend on them (e.g. #8 depends on #60) */
+  for (const p of mainAll) {
+    const toRow = rowToCanonical.get(p.rowNumber) ?? p.rowNumber;
     if (!byRow.has(toRow)) continue;
     for (const orig of (p.dependencyRowNumbers || [])) {
-      const depRow = resolve(orig);
-      if (!byRow.has(depRow) || depRow === toRow) continue;
-      addEdge(depRow, toRow, blockers(p).has(orig));
+      if (!byRow.has(orig)) continue;
+      if (orig === toRow) continue;
+      addEdge(orig, toRow, blockers(p).has(orig));
     }
   }
   edges.forEach(e => {
@@ -136,15 +156,16 @@ function renderDependencyGraphImpl(container, projects, options) {
     visiting.add(row);
     const deps = effectiveDepsByRow.get(row) ? [...effectiveDepsByRow.get(row)] : [];
     const depLayers = deps.map(r => assignLayer(r));
-    const L = deps.length === 0 ? 0 : 1 + Math.max(...depLayers);
+    const L = deps.length === 0 ? 0 : 1 + Math.max(0, ...depLayers);
     visiting.delete(row);
     layerOf.set(row, L);
     return L;
   };
-  for (const p of main) assignLayer(p.rowNumber);
-  const maxLayer = main.length ? Math.max(...main.map(p => layerOf.get(p.rowNumber))) : 0;
+  for (const row of byRow.keys()) assignLayer(row);
+  const allNodes = [...main, ...children];
+  const maxLayer = allNodes.length ? Math.max(...allNodes.map(p => layerOf.get(p.rowNumber) ?? 0)) : 0;
   for (let L = 0; L <= maxLayer; L++) {
-    const layerNodes = main.filter(p => layerOf.get(p.rowNumber) === L);
+    const layerNodes = allNodes.filter(p => layerOf.get(p.rowNumber) === L);
     layerNodes.sort((a, b) => (rankOrderIndex.get(a.rowNumber) ?? 9999) - (rankOrderIndex.get(b.rowNumber) ?? 9999));
     layers.push(layerNodes);
   }
@@ -166,7 +187,7 @@ function renderDependencyGraphImpl(container, projects, options) {
   const totalH = PAD * 2 + maxY;
 
   container.innerHTML = '';
-  if (main.length === 0) {
+  if (byRow.size === 0) {
     const p = document.createElement('p');
     p.className = 'dependency-graph-empty';
     p.textContent = (projects || []).length === 0
@@ -216,7 +237,17 @@ function renderDependencyGraphImpl(container, projects, options) {
   defs.appendChild(markerBlocker);
   svg.appendChild(defs);
 
-  /* Edges: from right of source to left of target (left-to-right flow) */
+  /* Edges: fan out by layer-pair index to reduce railroad overlap; softer non-blocker stroke */
+  const layerPairCount = new Map();
+  const edgeIndexByKey = new Map();
+  for (const e of edges) {
+    const lFrom = layerOf.get(e.from) ?? 0;
+    const lTo = layerOf.get(e.to) ?? 0;
+    const key = `${lFrom}-${lTo}`;
+    const idx = layerPairCount.get(key) ?? 0;
+    edgeIndexByKey.set(edgeKey(e.from, e.to), idx);
+    layerPairCount.set(key, idx + 1);
+  }
   for (const { from, to, isBlocker } of edges) {
     const a = nodePos.get(from);
     const b = nodePos.get(to);
@@ -226,11 +257,21 @@ function renderDependencyGraphImpl(container, projects, options) {
     const x2 = b.x;
     const y2 = b.y + b.h / 2;
     const midX = (x1 + x2) / 2;
+    const lFrom = layerOf.get(from) ?? 0;
+    const lTo = layerOf.get(to) ?? 0;
+    const key = `${lFrom}-${lTo}`;
+    const n = layerPairCount.get(key) ?? 1;
+    const idx = edgeIndexByKey.get(edgeKey(from, to)) ?? 0;
+    const offset = n <= 1 ? 0 : ((idx - (n - 1) / 2) * 8);
+    const cpy1 = y1 + offset;
+    const cpy2 = y2 + offset;
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${cpy1}, ${midX} ${cpy2}, ${x2} ${y2}`);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', isBlocker ? '#d29922' : 'var(--muted)');
     path.setAttribute('stroke-width', isBlocker ? '2' : '1');
+    path.setAttribute('stroke-dasharray', isBlocker ? '6 4' : '8 6');
+    path.setAttribute('stroke-opacity', isBlocker ? '1' : '0.65');
     path.setAttribute('marker-end', isBlocker ? 'url(#dep-arrow-blocker)' : 'url(#dep-arrow)');
     path.setAttribute('class', isBlocker ? 'dependency-edge dependency-edge--blocker' : 'dependency-edge');
     svg.appendChild(path);
@@ -258,16 +299,31 @@ function renderDependencyGraphImpl(container, projects, options) {
     rect.setAttribute('ry', '10');
     rect.setAttribute('class', 'dependency-node-rect');
     const summary = (p.summary || '').trim();
-    const summaryShort = summary.length > 28 ? summary.slice(0, 28) + '…' : summary;
+    const summaryShort = summary.length > SUMMARY_MAX ? summary.slice(0, SUMMARY_MAX) + '…' : summary;
+    const bucketName = p.resourceGroupName || '';
+    let slLabel = isResourceGroup
+      ? (bucketName ? `${bucketName} (#${p.rowNumber})` : `#${p.rowNumber} (shared pool)`)
+      : isMultiLineGroup
+        ? `#${p.rowNumber} (multiple line items)`
+        : `#${p.rowNumber}`;
+    if (slLabel.length > SL_LABEL_MAX) slLabel = slLabel.slice(0, SL_LABEL_MAX) + '…';
+    const clipId = `dep-clip-${p.rowNumber}`;
+    const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    clip.setAttribute('id', clipId);
+    const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    clipRect.setAttribute('x', pos.x);
+    clipRect.setAttribute('y', pos.y);
+    clipRect.setAttribute('width', pos.w);
+    clipRect.setAttribute('height', pos.h);
+    clipRect.setAttribute('rx', '10');
+    clipRect.setAttribute('ry', '10');
+    clip.appendChild(clipRect);
+    defs.appendChild(clip);
+    g.setAttribute('clip-path', `url(#${clipId})`);
     const labelSl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     labelSl.setAttribute('x', pos.x + 12);
     labelSl.setAttribute('y', pos.y + 20);
     labelSl.setAttribute('class', 'dependency-node-sl');
-    const slLabel = isResourceGroup
-      ? `#${p.rowNumber} (shared pool)`
-      : isMultiLineGroup
-        ? `#${p.rowNumber} (multiple line items)`
-        : `#${p.rowNumber}`;
     labelSl.textContent = slLabel;
     const labelSummary = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     labelSummary.setAttribute('x', pos.x + 12);
@@ -279,15 +335,78 @@ function renderDependencyGraphImpl(container, projects, options) {
     g.appendChild(labelSummary);
     g.setAttribute('data-row', String(p.rowNumber));
     const effectiveDeps = effectiveDepsByRow.get(p.rowNumber);
-    const depsList = effectiveDeps ? [...effectiveDeps].join(', ') : '';
+    const blockers = new Set(p.dependencyDevBlockers || []);
+    const isBlocker = (resolvedRow) => blockers.has(resolvedRow) || (p.dependencyRowNumbers || []).some(orig => resolve(orig) === resolvedRow && blockers.has(orig));
+    const depsList = effectiveDeps
+      ? [...effectiveDeps].sort((a, b) => a - b).map(r => isBlocker(r) ? `${r} (Dev-blocker)` : `${r}`).join(', ')
+      : '';
     const groupArr = canonicalToGroup.get(p.rowNumber);
     const groupNote = groupArr && groupArr.length > 1
       ? `\nMultiple line items (effort per row): ${groupArr.join(', ')}`
       : isResourceGroup && p.resourceGroupChildRows?.length
-        ? `\nResource group (combined effort): parent + ${p.resourceGroupChildRows.length} sub`
+        ? `\nBucket "${bucketName || p.rowNumber}" (${p.resourceGroupChildRows.length} sub-projects)`
         : '';
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
     title.textContent = `#${p.rowNumber} – ${p.summary || '—'}${groupNote}\nDepends on: ${depsList || 'none'}`;
+    g.appendChild(title);
+    svg.appendChild(g);
+  });
+
+  /* Resource-group (shared pool) child nodes: show line items and their interdependencies */
+  children.forEach(p => {
+    const pos = nodePos.get(p.rowNumber);
+    if (!pos) return;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'dependency-node dependency-node--pool-child');
+    g.setAttribute('data-row', String(p.rowNumber));
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', pos.x);
+    rect.setAttribute('y', pos.y);
+    rect.setAttribute('width', pos.w);
+    rect.setAttribute('height', pos.h);
+    rect.setAttribute('rx', '8');
+    rect.setAttribute('ry', '8');
+    rect.setAttribute('class', 'dependency-node-rect');
+    const summary = (p.summary || '').trim();
+    const summaryShort = summary.length > SUMMARY_MAX ? summary.slice(0, SUMMARY_MAX) + '…' : summary;
+    const bucketNameChild = p.resourceGroupName || '';
+    let slLabelChild = bucketNameChild ? `#${p.rowNumber} (${bucketNameChild})` : `#${p.rowNumber} (pool of #${p.resourceGroupParentRow})`;
+    if (slLabelChild.length > SL_LABEL_MAX) slLabelChild = slLabelChild.slice(0, SL_LABEL_MAX) + '…';
+    const clipIdChild = `dep-clip-child-${p.rowNumber}`;
+    const clipChild = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    clipChild.setAttribute('id', clipIdChild);
+    const clipRectChild = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    clipRectChild.setAttribute('x', pos.x);
+    clipRectChild.setAttribute('y', pos.y);
+    clipRectChild.setAttribute('width', pos.w);
+    clipRectChild.setAttribute('height', pos.h);
+    clipRectChild.setAttribute('rx', '8');
+    clipRectChild.setAttribute('ry', '8');
+    clipChild.appendChild(clipRectChild);
+    defs.appendChild(clipChild);
+    g.setAttribute('clip-path', `url(#${clipIdChild})`);
+    const labelSl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    labelSl.setAttribute('x', pos.x + 12);
+    labelSl.setAttribute('y', pos.y + 20);
+    labelSl.setAttribute('class', 'dependency-node-sl');
+    labelSl.textContent = slLabelChild;
+    const labelSummary = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    labelSummary.setAttribute('x', pos.x + 12);
+    labelSummary.setAttribute('y', pos.y + 38);
+    labelSummary.setAttribute('class', 'dependency-node-summary');
+    labelSummary.textContent = summaryShort || '—';
+    const effectiveDeps = effectiveDepsByRow.get(p.rowNumber);
+    const blockers = new Set(p.dependencyDevBlockers || []);
+    const isBlocker = (resolvedRow) => blockers.has(resolvedRow) || (p.dependencyRowNumbers || []).some(orig => (childToParent.get(orig) ?? orig) === resolvedRow && blockers.has(orig));
+    const depsList = effectiveDeps
+      ? [...effectiveDeps].sort((a, b) => a - b).map(r => isBlocker(r) ? `${r} (Dev-blocker)` : `${r}`).join(', ')
+      : '';
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `#${p.rowNumber} – ${p.summary || '—'}\nPart of bucket "${bucketNameChild || p.resourceGroupParentRow}" (parent #${p.resourceGroupParentRow})\nDepends on: ${depsList || 'none'}`;
+    g.appendChild(rect);
+    g.appendChild(labelSl);
+    g.appendChild(labelSummary);
     g.appendChild(title);
     svg.appendChild(g);
   });

@@ -3,148 +3,113 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NDB Projects – Bin packing Gantt</title>
+  <title>2. Schedule – NDB Projects</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
   <link rel="stylesheet" href="css/main.css">
-  <script>
-    window.__errLog = [];
-    window.onerror = function(msg, url, line, col, err) {
-      window.__errLog.push({ msg: String(msg), url: url || '', line: line, col: col, stack: err && err.stack });
-      return false;
-    };
-    window.addEventListener('unhandledrejection', function(e) {
-      window.__errLog.push({ msg: 'Unhandled rejection: ' + (e.reason && (e.reason.message || String(e.reason))), stack: e.reason && e.reason.stack });
-    });
-  </script>
 </head>
 <body>
   <div class="app">
     <h1>NDB 3.0 – Project bin packing</h1>
 
     <nav class="tabs" role="tablist">
-      <button type="button" class="tab active" data-tab="upload" role="tab" aria-selected="true">1. Refresh CSV</button>
-      <button type="button" class="tab" data-tab="gantt" role="tab" aria-selected="false">2. Schedule</button>
-      <button type="button" class="tab" data-tab="dependencies" role="tab" aria-selected="false">3. Dependencies</button>
+      <a href="upload.html" class="tab" role="tab">1. Refresh CSV</a>
+      <a href="index.html" class="tab active" role="tab" aria-current="page">2. Schedule</a>
+      <a href="dependencies.html" class="tab" role="tab">3. Dependencies</a>
+      <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
     </nav>
 
-    <div id="uploadPanel" class="tab-panel" role="tabpanel">
-      <div class="upload-section">
-        <p class="upload-desc">Upload a prioritization CSV (same columns as Sheet1) or a previously exported project-data JSON. Submit to use in Schedule. Data is kept in this browser and loaded from <code>data/projects.json</code> when present.</p>
-        <div class="upload-controls">
-          <input type="file" id="csvFileInput" accept=".csv,.json,text/csv,application/json" aria-label="Choose CSV or JSON file">
+    <div class="tab-panel" role="main">
+      <div class="controls">
+        <div class="control-group">
+          <label for="numFTEs">Number of FTEs</label>
+          <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="85" title="Headcount (people)" placeholder="e.g. 100">
         </div>
-        <p class="upload-status-row"><span id="uploadStatus" class="upload-status">No file chosen. Select a .csv or .json file above.</span></p>
-        <div id="uploadSubmitRow" class="upload-submit-row">
-          <button type="button" id="uploadSubmitBtn" class="btn-submit">Submit</button>
-          <span class="upload-submit-hint">Review the table below, then go to the Schedule tab when ready.</span>
+        <div class="control-group">
+          <label for="capacityPerFte">Capacity per FTE (%)</label>
+          <input type="text" id="capacityPerFte" inputmode="decimal" value="60" title="60 = 60%" placeholder="e.g. 60">
         </div>
-        <div id="exportRow" class="upload-submit-row" style="display: none;">
-          <button type="button" id="exportJsonBtn" class="btn-export" title="Download as JSON; save as data/projects.json so the app loads it next time without re-uploading">Export project data (JSON)</button>
+        <div class="control-group">
+          <label for="startDate">Start date</label>
+          <input type="date" id="startDate" value="2026-04-01">
         </div>
-        <div id="uploadTableWrap" class="upload-table-wrap" style="display: none;">
-          <h3 class="upload-table-title">Verify projects (ordered by Sl No)</h3>
-          <div id="uploadTableContainer" class="upload-table-container"></div>
+        <div class="control-group">
+          <label for="endDate">End date (viewport &amp; target)</label>
+          <input type="date" id="endDate" value="2027-01-30" title="Initial view and target date; scroll right for projects beyond">
+        </div>
+        <div class="control-group">
+          <label for="commitment">3.0 Commitment Status</label>
+          <select id="commitment">
+            <option value="">All</option>
+            <option value="Committed" selected>Committed</option>
+            <option value="Approved">Approved</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option value="">All</option>
+            <option value="P0" selected>P0</option>
+            <option value="P1">P1</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="submitBtn">&nbsp;</label>
+          <button type="button" id="submitBtn" class="btn-submit">Submit</button>
         </div>
       </div>
-    </div>
 
-    <div id="ganttPanel" class="tab-panel" role="tabpanel" hidden>
-    <div class="controls">
-      <div class="control-group">
-        <label for="numFTEs">Number of FTEs</label>
-        <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="100" title="Headcount (people)" placeholder="e.g. 100">
-      </div>
-      <div class="control-group">
-        <label for="capacityPerFte">Capacity per FTE (%)</label>
-        <input type="text" id="capacityPerFte" inputmode="decimal" value="60" title="60 = 60%" placeholder="e.g. 60">
-      </div>
-      <div class="control-group">
-        <label for="startDate">Start date</label>
-        <input type="date" id="startDate" value="2026-04-01">
-      </div>
-      <div class="control-group">
-        <label for="endDate">End date (viewport &amp; target)</label>
-        <input type="date" id="endDate" value="2027-01-30" title="Initial view and target date; scroll right for projects beyond">
-      </div>
-      <div class="control-group">
-        <label for="commitment">3.0 Commitment Status</label>
-        <select id="commitment">
-          <option value="">All</option>
-          <option value="Committed" selected>Committed</option>
-          <option value="Approved">Approved</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label for="priority">Priority</label>
-        <select id="priority">
-          <option value="">All</option>
-          <option value="P0" selected>P0</option>
-          <option value="P1">P1</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label for="submitBtn">&nbsp;</label>
-        <button type="button" id="submitBtn" class="btn-submit">Submit</button>
-      </div>
-    </div>
+      <p id="submitHint" class="submit-hint">Set headcount, dates, and filters, then click Submit to see the Gantt.</p>
 
-    <p id="submitHint" class="submit-hint">Set headcount, dates, and filters, then click Submit to see the Gantt.</p>
+      <div id="scheduleSummary" class="mode-summary" style="display: none;"></div>
 
-    <div id="scheduleSummary" class="mode-summary" style="display: none;"></div>
+      <div id="ganttSection" class="gantt-section" style="display: none;">
+        <h2 id="ganttTitle">Schedule</h2>
+        <div class="gantt-wrapper">
+          <div id="ganttLabels" class="gantt-labels" aria-label="Column B (group), Column C (project)"></div>
+          <div class="gantt-chart-scroll">
+            <div id="ganttAxis" class="gantt-axis"></div>
+            <div id="ganttChart"></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span>Realistic schedule: 1 person = 1 project at a time. Start dates respect hard dependencies.</span>
+          <span>Bar length = duration: Total person-months ÷ (Dev resources × Capacity %).</span>
+          <span>Bar thickness = Dev resources (max parallelization)</span>
+          <span id="capacityLegend"></span>
+        </div>
+        <div class="color-legend">
+          <div class="color-legend-item"><span class="color-swatch color-swatch--in-progress"></span> In Progress (completion % from CSV column)</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--fresh"></span> Fresh allocation</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--rotated"></span> Rotated FTEs (reused from completed projects)</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--group-child"></span> Resource group child (no additional capacity)</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--past-deadline"></span> Extends past target date</div>
+        </div>
 
-    <div id="ganttSection" class="gantt-section" style="display: none;">
-      <h2 id="ganttTitle">Schedule</h2>
-      <div class="gantt-wrapper">
-        <div id="ganttAxis" class="gantt-axis"></div>
-        <div id="ganttChart"></div>
-      </div>
-      <div class="legend">
-        <span>Bar length = Number of Months (Dev)</span>
-        <span>Bar thickness = Dev resources (max parallelization)</span>
-        <span id="capacityLegend"></span>
-      </div>
-      <div class="color-legend">
-        <div class="color-legend-item"><span class="color-swatch color-swatch--in-progress"></span> In Progress (completion % from CSV column)</div>
-        <div class="color-legend-item"><span class="color-swatch color-swatch--fresh"></span> Fresh allocation</div>
-        <div class="color-legend-item"><span class="color-swatch color-swatch--rotated"></span> Rotated FTEs (reused from completed projects)</div>
-        <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
-        <div class="color-legend-item"><span class="color-swatch color-swatch--group-child"></span> Resource group child (no additional capacity)</div>
-        <div class="color-legend-item"><span class="color-swatch color-swatch--past-deadline"></span> Extends past target date</div>
+        <section id="spareCapacitySection" class="insight-section" aria-label="Spare capacity" style="display: none;">
+          <h3>Spare capacity</h3>
+          <p id="spareCapacityDesc" class="insight-desc"></p>
+          <div id="spareCapacityChart" class="spare-capacity-chart"></div>
+          <ul id="spareCapacityList" class="insight-list"></ul>
+        </section>
+
+        <section id="longPolesSection" class="insight-section" aria-label="Long poles" style="display: none;">
+          <h3>Long poles (timeline drivers)</h3>
+          <p class="insight-desc">Projects ending in the last 25% of the timeline — focus or de-risk these to shorten the schedule.</p>
+          <ul id="longPolesList" class="insight-list"></ul>
+        </section>
+
+        <section id="pastDeadlineSection" class="insight-section" aria-label="Past target date" style="display: none;">
+          <h3>Past target date</h3>
+          <p id="pastDeadlineDesc" class="insight-desc"></p>
+          <ul id="pastDeadlineList" class="insight-list"></ul>
+        </section>
       </div>
 
-      <section id="spareCapacitySection" class="insight-section" aria-label="Spare capacity" style="display: none;">
-        <h3>Spare capacity</h3>
-        <p id="spareCapacityDesc" class="insight-desc"></p>
-        <div id="spareCapacityChart" class="spare-capacity-chart"></div>
-        <ul id="spareCapacityList" class="insight-list"></ul>
-      </section>
-
-      <section id="longPolesSection" class="insight-section" aria-label="Long poles" style="display: none;">
-        <h3>Long poles (timeline drivers)</h3>
-        <p class="insight-desc">Projects ending in the last 25% of the timeline — focus or de-risk these to shorten the schedule.</p>
-        <ul id="longPolesList" class="insight-list"></ul>
-      </section>
-
-      <section id="pastDeadlineSection" class="insight-section" aria-label="Past target date" style="display: none;">
-        <h3>Past target date</h3>
-        <p id="pastDeadlineDesc" class="insight-desc"></p>
-        <ul id="pastDeadlineList" class="insight-list"></ul>
-      </section>
-
-    </div>
-
-    <div id="status" class="status"></div>
-    </div>
-
-    <div id="dependenciesPanel" class="tab-panel" role="tabpanel" hidden>
-      <section class="dependency-graph-section" aria-label="Dependency graph">
-        <h2>Dependency graph</h2>
-        <p class="dependency-graph-desc">Who blocks whom: arrows point from a dependency to the project that cannot complete until it’s checked in. Same filters as Schedule.</p>
-        <div id="dependencyGraph" class="dependency-graph-container"></div>
-      </section>
+      <div id="status" class="status"></div>
     </div>
   </div>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/schedule.js"></script>
 </body>
 </html>

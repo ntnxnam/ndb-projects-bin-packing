@@ -108,6 +108,12 @@ h1 {
   color: var(--muted);
   font-size: 0.9rem;
   cursor: pointer;
+  text-decoration: none;
+}
+
+/* Nav links (multi-page) use same .tab style */
+a.tab {
+  display: inline-block;
 }
 
 .tab:hover {
@@ -241,6 +247,43 @@ h1 {
 .verify-table td:nth-child(6),
 .verify-table td:nth-child(7) { text-align: right; }
 
+/* Bottom-up table: CSV vs schedule + challenge */
+.bottom-up-table td:nth-child(3),
+.bottom-up-table td:nth-child(4),
+.bottom-up-table td:nth-child(5),
+.bottom-up-table td:nth-child(9) { text-align: right; }
+.bottom-up-table td:nth-child(6) { max-width: 10rem; word-wrap: break-word; }
+.bottom-up-table td:nth-child(7),
+.bottom-up-table td:nth-child(8) { white-space: nowrap; font-size: 0.8rem; }
+.bottom-up-table td:nth-child(10) { max-width: 20rem; word-wrap: break-word; color: var(--text); }
+.bottom-up-challenge { color: #f85149; font-weight: 500; }
+.bottom-up-row-warn { background: rgba(248, 81, 73, 0.08); }
+.bottom-up-section .bottom-up-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  max-width: 56rem;
+}
+
+.bottom-up-table-caption {
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.bottom-up-gantt-section {
+  margin-top: 2rem;
+}
+
+.bottom-up-gantt-desc {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  max-width: 56rem;
+}
+
 .mode-selector {
   display: flex;
   gap: 1.5rem;
@@ -328,12 +371,88 @@ h1 {
 }
 
 .gantt-wrapper {
+  display: flex;
+  flex-direction: row;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow-x: auto;
-  padding: 0 1rem 1rem;
   min-height: 200px;
+  padding: 0 0 1rem 0;
+}
+
+.gantt-labels {
+  flex: 0 0 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.gantt-labels-header {
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0 8px 6px;
+  border-bottom: 1px solid var(--border);
+  height: 28px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.gantt-labels-header .gantt-col-b { width: 90px; min-width: 90px; flex-shrink: 0; }
+.gantt-labels-header .gantt-col-c { flex: 1; min-width: 0; padding-left: 6px; }
+
+.gantt-labels-rows {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+}
+
+.gantt-label-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.gantt-label-row.gantt-label-row--group {
+  background: rgba(130, 160, 200, 0.08);
+  border-left: 3px solid var(--accent);
+}
+
+.gantt-label-row .gantt-col-b {
+  width: 90px;
+  min-width: 90px;
+  flex-shrink: 0;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-label-row .gantt-col-c {
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-chart-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0 1rem 0 0;
 }
 
 #ganttChart {
@@ -388,6 +507,36 @@ h1 {
   z-index: 1;
   /* Height set in JS to fit all bars stacked vertically */
   min-height: 200px;
+}
+
+/* Background layer: dotted boxes around groups (no top-level bar) */
+.gantt-track-background {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gantt-group-box {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px dashed rgba(110, 118, 129, 0.6);
+  border-radius: 6px;
+  background: rgba(110, 118, 129, 0.04);
+}
+
+.gantt-labels-background {
+  z-index: 0;
+}
+
+.gantt-labels-rows .gantt-label-row {
+  position: absolute;
+  z-index: 1;
 }
 
 .gantt-bar {
@@ -538,6 +687,49 @@ h1 {
   border-radius: 3px;
   padding: 0 3px;
   margin-right: 3px;
+}
+
+/* No capacity: 0 headcount available — no outstanding resources; blue, placed at right */
+.gantt-bar--no-capacity {
+  background: rgba(31, 111, 235, 0.55) !important;
+  border: 1px solid #1f6feb;
+}
+
+.gantt-bar--no-capacity:hover {
+  background: rgba(56, 139, 253, 0.7) !important;
+  border-color: #388bfd;
+}
+
+/* Main group bar: single green bar for a resource group (e.g. IAMv2) spanning full group range */
+.gantt-bar--main-group {
+  background: #238636 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.gantt-bar--main-group:hover {
+  background: #2ea043 !important;
+}
+
+/* Grouping bar: section header for a bucket when not using main-group bar */
+.gantt-bar--grouping {
+  background: rgba(110, 118, 129, 0.45) !important;
+  border: 1px solid rgba(110, 118, 129, 0.6);
+  font-weight: 600;
+}
+
+.gantt-bar--grouping:hover {
+  background: rgba(110, 118, 129, 0.55) !important;
+}
+
+/* Bucket parent bar: grey when shown under a grouping bar (e.g. 59 - IAMv2 - User onboarding...) */
+.gantt-bar--bucket-parent {
+  background: rgba(110, 118, 129, 0.35) !important;
+  border: 1px solid rgba(110, 118, 129, 0.5);
+}
+
+.gantt-bar--bucket-parent:hover {
+  background: rgba(110, 118, 129, 0.5) !important;
 }
 
 /* Resource group parent: subtle border to indicate it contains sub-projects */
@@ -714,7 +906,7 @@ h1 {
 }
 
 .dependency-node-rect {
-  fill: var(--surface);
+  fill: #212d3f;
   stroke: var(--border);
   stroke-width: 1.5;
   transition: fill 0.15s, stroke 0.15s;
@@ -759,6 +951,19 @@ h1 {
 
 .dependency-node--multi-line:hover .dependency-node-rect {
   stroke: #a08060;
+}
+
+/* Shared pool line items (children of resource-group parent) */
+.dependency-node--pool-child .dependency-node-rect {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  fill: rgba(130, 160, 200, 0.24);
+}
+
+.dependency-node--pool-child:hover .dependency-node-rect {
+  fill: rgba(130, 160, 200, 0.36);
+  stroke: var(--accent);
 }
 
 .dependency-edge {
