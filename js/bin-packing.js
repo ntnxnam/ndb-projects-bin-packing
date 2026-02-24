@@ -2,12 +2,13 @@
  * Bin packing for project scheduling.
  * Assumption: 1 person works on 1 project at a time (whole people). Duration = effort ÷ people when set.
  * Dependencies block completion/check-in: a project cannot finish before its dependency is checked in.
- * Ranking tiers: 0 = In-progress, 1 = Dev-blocker deps (more dependents first), 2 = Plain deps, 3 = Longest duration first.
- * Capacity is in effective FTE; we reserve ceil(people) per project so the schedule is realistic.
+ * Capacity-constrained: each project is placed at the earliest month where (a) all dependencies
+ * have ended and (b) its people fit within remaining headcount. No month may exceed capacityFTE
+ * (raw headcount, e.g. 85 — NOT effective FTE). The capacityPct only stretches bar duration.
  * @module bin-packing
  */
 
-import { durationMonths, remainingDurationMonths, totalResources, SIZING_MONTHS } from './sizing.js';
+import { durationMonths, remainingDurationMonths, totalResources, hasDurationData, SIZING_MONTHS, monthsFromSizingBand } from './sizing.js';
 import { logger } from './logger.js';
 
 /** When duration is missing and no sizing label: assume 1 FTE → long bar (months). */
@@ -37,40 +38,46 @@ function resolveDepRow(depRow, childToParent) {
 
 /**
  * Build dependents-count maps for ranking display and comparison.
- * For each project row: how many others list it as dev-blocker vs plain dependency.
+ * For each project row: how many others list it as dev-blocker, rel-blocker, or plain dependency.
  * @param {Array<object>} projects
- * @returns {{ devBlockerDependentsCount: Map<number, number>, plainDependentsCount: Map<number, number> }}
+ * @returns {{ devBlockerDependentsCount: Map<number, number>, relBlockerDependentsCount: Map<number, number>, plainDependentsCount: Map<number, number> }}
  */
 export function getDependentsCounts(projects) {
   const list = projects || [];
   const childToParent = buildChildToParentMap(list);
   const byRowNumber = new Map(list.map((p, i) => [p.rowNumber ?? i + 1, p]));
   const devBlockerSet = (p) => new Set(p.dependencyDevBlockers || []);
+  const relBlockerSet = (p) => new Set(p.dependencyRelBlockers || []);
   const devBlockerDependentsCount = new Map();
+  const relBlockerDependentsCount = new Map();
   const plainDependentsCount = new Map();
   for (const p of list) {
     const row = p.rowNumber ?? list.indexOf(p) + 1;
     devBlockerDependentsCount.set(row, 0);
+    relBlockerDependentsCount.set(row, 0);
     plainDependentsCount.set(row, 0);
   }
   for (const p of list) {
-    const blockers = devBlockerSet(p);
+    const devBlockers = devBlockerSet(p);
+    const relBlockers = relBlockerSet(p);
     const internalDeps = (p.dependencyRowNumbers || []).filter(depRow => depRow !== p.rowNumber && byRowNumber.has(depRow));
     for (const depRow of internalDeps) {
       const resolved = resolveDepRow(depRow, childToParent);
-      if (blockers.has(depRow)) {
+      if (devBlockers.has(depRow)) {
         devBlockerDependentsCount.set(resolved, (devBlockerDependentsCount.get(resolved) || 0) + 1);
+      } else if (relBlockers.has(depRow)) {
+        relBlockerDependentsCount.set(resolved, (relBlockerDependentsCount.get(resolved) || 0) + 1);
       } else {
         plainDependentsCount.set(resolved, (plainDependentsCount.get(resolved) || 0) + 1);
       }
     }
   }
-  return { devBlockerDependentsCount, plainDependentsCount };
+  return { devBlockerDependentsCount, relBlockerDependentsCount, plainDependentsCount };
 }
 
 /**
  * Order: respect dependencies (all deps scheduled before a dependent). Among ready projects,
- * rank by: (1) dev-blockers first, (2) plain dependencies next, (3) longest duration first (reverse order).
+ * rank by: (1) in-progress, (2) priority tier, (3) total projects I block (dev+rel+plain; more first), (4) dev-blocker count, (5) rel-blocker count, (6) plain deps, (7) duration, (8) row number.
  * Resource-group children are placed immediately after their parent (they don't independently consume capacity).
  */
 export function orderByDependencyAndSize(projects) {
@@ -86,28 +93,45 @@ export function orderByDependencyAndSize(projects) {
   }
 
   const byRowNumber = new Map(list.map((p, i) => [p.rowNumber ?? i + 1, p]));
-  const { devBlockerDependentsCount, plainDependentsCount } = getDependentsCounts(list);
+  const { devBlockerDependentsCount, relBlockerDependentsCount, plainDependentsCount } = getDependentsCounts(list);
 
   const rankCompare = (a, b) => {
-    /* Rank 0: in-progress projects always come first */
+    /* 1. In-progress first */
     const ipA = a.inProgress ? 1 : 0;
     const ipB = b.inProgress ? 1 : 0;
     if (ipB !== ipA) return ipB - ipA;
 
-    /* Priority tier: Tier 1 (P0 + Committed) scheduled before Tier 2 */
-    const tierA = a._tier ?? 2;
-    const tierB = b._tier ?? 2;
+    /* 2. Priority tier: 1=P0+Committed, 2=P1 Committed, 3=P0 Approved, 4=P1 Approved, 5=rest */
+    const tierA = a._tier ?? 5;
+    const tierB = b._tier ?? 5;
     if (tierA !== tierB) return tierA - tierB;
 
+    /* 3. Total projects I block (more first): dev + rel + plain dependents */
     const blockA = devBlockerDependentsCount.get(a.rowNumber) ?? 0;
     const blockB = devBlockerDependentsCount.get(b.rowNumber) ?? 0;
-    if (blockB !== blockA) return blockB - blockA;
+    const relA = relBlockerDependentsCount.get(a.rowNumber) ?? 0;
+    const relB = relBlockerDependentsCount.get(b.rowNumber) ?? 0;
     const plainA = plainDependentsCount.get(a.rowNumber) ?? 0;
     const plainB = plainDependentsCount.get(b.rowNumber) ?? 0;
+    const totalA = blockA + relA + plainA;
+    const totalB = blockB + relB + plainB;
+    if (totalB !== totalA) return totalB - totalA;
+
+    /* 4. Dev-blocker dependents (more first) */
+    if (blockB !== blockA) return blockB - blockA;
+
+    /* 5. Rel-blocker dependents (more first) */
+    if (relB !== relA) return relB - relA;
+
+    /* 6. Plain dependents (more first) */
     if (plainB !== plainA) return plainB - plainA;
+
+    /* 7. Duration (longest first) */
     const dmA = durationMonths(a);
     const dmB = durationMonths(b);
     if (dmB !== dmA) return dmB - dmA;
+
+    /* 8. Row number */
     const slA = a.rowNumber ?? 999999;
     const slB = b.rowNumber ?? 999999;
     return slA - slB;
@@ -181,9 +205,40 @@ export function orderByDependencyAndSize(projects) {
 }
 
 /**
+ * Topological sort of sub-projects within a pool, respecting only intra-pool dependencies.
+ * Falls back to rowNumber order for sub-projects with no internal deps.
+ */
+function topoSortSubProjects(subProjects, siblingRows) {
+  const sorted = [];
+  const added = new Set();
+  let remaining = [...subProjects];
+  while (remaining.length > 0) {
+    const ready = remaining.filter(p => {
+      const deps = (p.dependencyRowNumbers || []).filter(
+        d => d !== p.rowNumber && siblingRows.has(d)
+      );
+      return deps.every(d => added.has(d));
+    });
+    if (ready.length === 0) {
+      remaining.sort((a, b) => (a.rowNumber ?? 0) - (b.rowNumber ?? 0));
+      sorted.push(...remaining);
+      break;
+    }
+    ready.sort((a, b) => (a.rowNumber ?? 0) - (b.rowNumber ?? 0));
+    for (const p of ready) {
+      sorted.push(p);
+      added.add(p.rowNumber);
+    }
+    remaining = remaining.filter(p => !added.has(p.rowNumber));
+  }
+  return sorted;
+}
+
+/**
  * Capacity pack: projects ordered by ranking; each placed one after the other.
- * When a project is allocated, X people are blocked for Y months from the calculated capacity
- * (e.g. 100 FTEs × 60% = 60 people). Each project starts at the earliest month where
+ * When a project is allocated, X people (raw headcount) are blocked for Y months.
+ * The capacityPct stretches duration (bar width) but does NOT shrink the people pool.
+ * Each project starts at the earliest month where
  * (1) all dependencies have ended and (2) X people fit within remaining capacity for Y months.
  *
  * Resource-group children: don't consume capacity independently. They are positioned within
@@ -211,18 +266,6 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     return d;
   }
 
-  const capacityPeople = Math.floor(capacityFTE);
-
-  function canFit(startMonthIndex, durationMonths, people) {
-    const reserved = Math.ceil(people);
-    for (let i = 0; i < durationMonths; i++) {
-      const key = startMonthIndex + i;
-      const used = usage.get(key) ?? 0;
-      if (used + reserved > capacityPeople) return false;
-    }
-    return true;
-  }
-
   function addUsage(startMonthIndex, durationMonths, people) {
     const reserved = Math.ceil(people);
     for (let i = 0; i < durationMonths; i++) {
@@ -231,8 +274,17 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     }
   }
 
-  /* Map from parent rowNumber → schedule entry; collect children for second pass */
-  const parentScheduleEntry = new Map();
+  function canFit(startMonthIndex, durationMonths, people) {
+    const reserved = Math.ceil(people);
+    if (reserved <= 0) return true;
+    for (let i = 0; i < durationMonths; i++) {
+      const key = startMonthIndex + i;
+      if ((usage.get(key) ?? 0) + reserved > capacityFTE) return false;
+    }
+    return true;
+  }
+
+  /* Collect children by parent row for second pass */
   const childrenByParentRow = new Map();
   for (const p of sorted) {
     if (p.isResourceGroupChild && p.resourceGroupParentRow != null) {
@@ -247,149 +299,211 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
 
     if (p.isResourceGroupChild) continue;
 
-    /* --- Normal project (including resource-group parents) --- */
-    /* Bar width = remainingDurationMonths (already includes completion % and capacity %). */
-    const rawMonths = durationFor(p);
-    const rawFte = totalResources(p);
-    let months = rawMonths > 0 ? rawMonths : (p.sizingLabel && SIZING_MONTHS[p.sizingLabel]) || DEFAULT_DURATION_WHEN_UNKNOWN;
-    months = Math.max(1, months);
-    const fte = rawFte <= 0 ? 0 : rawFte;
+    /* --- Type 2a pool parent: container bar from pool data --- */
+    const isPoolParent = p.resourceGroupRole === 'pool-parent' && p._pool;
 
+    let rawMonths, rawFte, missingDurationData;
+
+    if (isPoolParent) {
+      const pool = p._pool;
+      const pct = capacityPct > 0 && capacityPct <= 100 ? capacityPct / 100 : 1;
+      const poolFte = pool.totalResources || 0;
+      const poolPM = pool.totalPersonMonthsNum;
+
+      /* Budget duration: person-months / (people × capacity%) */
+      let budgetMonths = 0;
+      if (poolPM > 0 && poolFte > 0 && pct > 0) {
+        budgetMonths = Math.max(1, Math.ceil(poolPM / (poolFte * pct)));
+      } else if (pool.durationMonths > 0) {
+        budgetMonths = pool.durationMonths;
+      }
+
+      /* Mini bin-packing: schedule sub-projects within the pool's people budget.
+         1 person per sub-project; at most poolFte run in parallel.
+         Priority: sub-projects that block the most others start first. */
+      const children = childrenByParentRow.get(p.rowNumber) || [];
+      const allSubProjects = [p, ...children];
+      const siblingRows = new Set(allSubProjects.map(s => s.rowNumber));
+
+      /* Count how many pool siblings each sub-project blocks (for ranking) */
+      const poolBlockCount = new Map();
+      for (const sub of allSubProjects) {
+        let count = 0;
+        for (const other of allSubProjects) {
+          if (other.rowNumber === sub.rowNumber) continue;
+          if ((other.dependencyRowNumbers || []).includes(sub.rowNumber)) count++;
+        }
+        poolBlockCount.set(sub.rowNumber, count);
+      }
+
+      const subEndByRow = new Map();
+      const subSchedule = [];
+      const poolUsage = new Map();
+      const poolSlots = Math.max(1, poolFte);
+
+      function poolUsedAt(month) { return poolUsage.get(month) ?? 0; }
+      function addPoolUsage(start, dur) {
+        for (let m = start; m < start + dur; m++) poolUsage.set(m, (poolUsage.get(m) ?? 0) + 1);
+      }
+      function canFitPool(start, dur) {
+        for (let m = start; m < start + dur; m++) {
+          if (poolUsedAt(m) >= poolSlots) return false;
+        }
+        return true;
+      }
+
+      /* Rank: most blockers first, then longest duration first, then row number */
+      const ranked = [...allSubProjects].sort((a, b) => {
+        const ba = poolBlockCount.get(a.rowNumber) ?? 0;
+        const bb = poolBlockCount.get(b.rowNumber) ?? 0;
+        if (bb !== ba) return bb - ba;
+        const da = monthsFromSizingBand(a.sizingLabel) || durationFor(a) || 1;
+        const db = monthsFromSizingBand(b.sizingLabel) || durationFor(b) || 1;
+        if (db !== da) return db - da;
+        return (a.rowNumber ?? 0) - (b.rowNumber ?? 0);
+      });
+
+      /* Schedule in rank order, respecting deps + capacity */
+      const scheduled = new Set();
+      const remaining = [...ranked];
+      while (remaining.length > 0) {
+        let placed = false;
+        for (let idx = 0; idx < remaining.length; idx++) {
+          const sub = remaining[idx];
+          const subDeps = (sub.dependencyRowNumbers || []).filter(
+            dep => dep !== sub.rowNumber && siblingRows.has(dep)
+          );
+          if (!subDeps.every(d => scheduled.has(d))) continue;
+
+          const subMonths = monthsFromSizingBand(sub.sizingLabel) || durationFor(sub) || 1;
+          let subStart = 0;
+          for (const depRow of subDeps) {
+            const depEnd = subEndByRow.get(depRow);
+            if (depEnd != null) subStart = Math.max(subStart, depEnd);
+          }
+          while (!canFitPool(subStart, subMonths)) subStart++;
+
+          subEndByRow.set(sub.rowNumber, subStart + subMonths);
+          addPoolUsage(subStart, subMonths);
+          subSchedule.push({
+            project: sub,
+            startMonthOffset: subStart,
+            months: subMonths,
+            poolDependsOn: subDeps,
+          });
+          scheduled.add(sub.rowNumber);
+          remaining.splice(idx, 1);
+          placed = true;
+          break;
+        }
+        if (!placed) {
+          for (const sub of remaining) {
+            const subMonths = monthsFromSizingBand(sub.sizingLabel) || durationFor(sub) || 1;
+            const subDeps = (sub.dependencyRowNumbers || []).filter(
+              dep => dep !== sub.rowNumber && siblingRows.has(dep)
+            );
+            let subStart = 0;
+            for (const depRow of subDeps) {
+              const depEnd = subEndByRow.get(depRow);
+              if (depEnd != null) subStart = Math.max(subStart, depEnd);
+            }
+            subEndByRow.set(sub.rowNumber, subStart + subMonths);
+            subSchedule.push({ project: sub, startMonthOffset: subStart, months: subMonths, poolDependsOn: subDeps });
+            scheduled.add(sub.rowNumber);
+          }
+          break;
+        }
+      }
+
+      const chainDuration = Math.max(0, ...Array.from(subEndByRow.values()));
+
+      /* Container spans the longer of budget vs chain */
+      rawMonths = Math.max(budgetMonths, chainDuration, 1);
+      rawFte = poolFte;
+      missingDurationData = budgetMonths <= 0;
+
+      /* Stash sub-schedule and durations on the entry for gantt rendering */
+      p._poolSchedule = subSchedule;
+      p._poolBudgetMonths = budgetMonths;
+      p._poolChainMonths = chainDuration;
+    } else {
+      rawMonths = durationFor(p);
+      rawFte = totalResources(p);
+      missingDurationData = !hasDurationData(p);
+    }
+
+    const months = rawMonths > 0 ? rawMonths : 1;
+    const fte = rawFte <= 0 ? 0 : rawFte;
     const isInProgress = !!p.inProgress;
 
-    /* Dependencies block completion/check-in: this project cannot finish before the dependency is "checked in".
-       So we require endMonth >= dependency end month, i.e. startMonth >= earliestEndMonth - months.
-       That allows work to start earlier (overlap with dependency) while still enforcing check-in order. */
+    /* All dependencies: cannot START until the dependency finishes (strict sequencing). */
     let earliestStartMonth = 0;
     if (!isInProgress) {
       const internalDepRows = (p.dependencyRowNumbers || [])
         .map(depRow => resolveDepRow(depRow, childToParent))
         .filter(depRow => endByRow.has(depRow));
-      const depEnds = internalDepRows.map(depRow => endByRow.get(depRow)).filter(Boolean);
-      if (depEnds.length > 0) {
-        const maxEnd = new Date(Math.max(...depEnds.map(d => d.getTime())));
-        const earliestEndMonth = monthIndex(maxEnd);
-        if (earliestEndMonth >= 0) {
-          earliestStartMonth = Math.max(0, earliestEndMonth - months);
-        }
+
+      for (const resolved of internalDepRows) {
+        const depEnd = endByRow.get(resolved);
+        if (!depEnd) continue;
+        earliestStartMonth = Math.max(earliestStartMonth, monthIndex(depEnd));
       }
     }
 
+    /* Capacity-constrained scheduling: start as early as dependencies allow,
+       then slide forward until the project's people fit within remaining capacity. */
     let startMonth = earliestStartMonth;
-    const MAX_SEARCH_MONTHS = 1200;
-    const projectPeople = Math.ceil(fte);
-    if (projectPeople > 0 && projectPeople <= capacityPeople) {
-      while (!canFit(startMonth, months, fte) && startMonth - earliestStartMonth < MAX_SEARCH_MONTHS) {
-        startMonth++;
-      }
+    while (!canFit(startMonth, months, fte)) {
+      startMonth++;
     }
 
     const startDateObj = dateFromMonthIndex(startMonth);
     const endDateObj = dateFromMonthIndex(startMonth + months);
 
-    let rotatedFteCount = 0;
-    let releasedFromIndex = undefined;
-    if (startMonth > 0) {
-      let freedAtStart = 0;
-      let bestReleaserEnd = -1;
-      for (let idx = 0; idx < result.length; idx++) {
-        const prev = result[idx];
-        if (prev.isResourceGroupChild) continue;
-        const prevEnd = monthIndex(prev.endDate);
-        if (prevEnd <= startMonth) {
-          freedAtStart += prev.fte;
-          if (prevEnd > bestReleaserEnd) {
-            bestReleaserEnd = prevEnd;
-            releasedFromIndex = idx;
-          }
-        }
-      }
-      rotatedFteCount = Math.min(fte, freedAtStart);
-    }
-
     addUsage(startMonth, months, fte);
-    const entry = { project: p, startDate: startDateObj, endDate: endDateObj, fte, rotated: rotatedFteCount > 0, rotatedFteCount, inProgress: isInProgress, releasedFromIndex };
+    const entry = {
+      project: p, startDate: startDateObj, endDate: endDateObj, fte,
+      rotated: false, rotatedFteCount: 0, inProgress: isInProgress,
+      releasedFromIndex: undefined, missingDurationData: !!missingDurationData,
+      isPoolContainer: !!isPoolParent,
+    };
     result.push(entry);
     if (p.rowNumber != null) {
       endByRow.set(p.rowNumber, endDateObj);
-      if (p.resourceGroupChildRows?.length) parentScheduleEntry.set(p.rowNumber, entry);
     }
   }
 
-  /* Defer 0-remaining projects to the end of the timeline (schedule when resources are back) */
-  let maxEndMonth = 0;
-  for (const e of result) {
-    if (e.isResourceGroupChild) continue;
-    const endMo = monthIndex(e.endDate);
-    if (endMo > maxEndMonth) maxEndMonth = endMo;
-  }
-  for (const entry of result) {
-    if (entry.isResourceGroupChild) continue;
-    const startMo = monthIndex(entry.startDate);
-    let usedAtStart = 0;
-    for (const prev of result) {
-      if (prev === entry) break;
-      if (prev.isResourceGroupChild) continue;
-      const pStart = monthIndex(prev.startDate);
-      const pEnd = monthIndex(prev.endDate);
-      if (startMo >= pStart && startMo < pEnd) usedAtStart += prev.fte ?? 0;
-    }
-    if (capacityPeople > 0 && usedAtStart >= capacityPeople) {
-      const durationMonths = monthIndex(entry.endDate) - monthIndex(entry.startDate);
-      const deferredStart = dateFromMonthIndex(maxEndMonth);
-      const deferredEnd = dateFromMonthIndex(maxEndMonth + Math.max(1, durationMonths));
-      entry.startDate = deferredStart;
-      entry.endDate = deferredEnd;
-      maxEndMonth += Math.max(1, durationMonths);
-      if (entry.project?.rowNumber != null) endByRow.set(entry.project.rowNumber, deferredEnd);
-    }
-  }
-
-  /* Second pass: place resource-group children — always serialize by dependency and ranking within parent window */
+  /* Second pass: emit sub-project entries for pool containers */
   const newResult = [];
   for (const entry of result) {
     newResult.push(entry);
-    const parentRow = entry.project?.rowNumber;
-    if (parentRow == null || !entry.project.resourceGroupChildRows?.length) continue;
-    const childProjects = childrenByParentRow.get(parentRow) || [];
-    if (childProjects.length === 0) continue;
+    const p = entry.project;
+    if (!entry.isPoolContainer || !p._poolSchedule) continue;
 
-    const parentStartMo = monthIndex(entry.startDate);
-    const parentEndMo = monthIndex(entry.endDate);
-    const parentDurationMo = Math.max(1, parentEndMo - parentStartMo);
-    const siblingRows = new Set(entry.project.resourceGroupChildRows || []);
-    /* Child duration: same bar-width formula (remainingDurationMonths already includes completion %). */
-    const withMonths = childProjects.map(p => {
-      const months = Math.max(1, durationFor(p) || SIZING_MONTHS[p.sizingLabel] || durationMonths(p) || 1);
-      return {
-        p,
-        months,
-        poolDependsOn: [...new Set((p.dependencyRowNumbers || []).filter(
-          dep => dep === parentRow || siblingRows.has(dep)
-        ))],
-      };
-    });
-    let cursor = parentStartMo;
-    const totalMonths = withMonths.reduce((s, x) => s + x.months, 0);
-    const scale = totalMonths > 0 ? parentDurationMo / totalMonths : 1;
-    for (let i = 0; i < withMonths.length; i++) {
-      const { p: child, months: childMonths, poolDependsOn: poolDeps } = withMonths[i];
-      const segMonths = Math.max(1, Math.round(scale * childMonths));
-      const segEndMo = Math.min(cursor + segMonths, parentEndMo);
-      newResult.push({
-        project: child,
-        startDate: dateFromMonthIndex(cursor),
-        endDate: dateFromMonthIndex(segEndMo),
+    const containerStartMo = monthIndex(entry.startDate);
+
+    for (let i = 0; i < p._poolSchedule.length; i++) {
+      const sub = p._poolSchedule[i];
+      const subStartMo = containerStartMo + sub.startMonthOffset;
+      const subEndMo = subStartMo + sub.months;
+      const childEntry = {
+        project: sub.project,
+        startDate: dateFromMonthIndex(subStartMo),
+        endDate: dateFromMonthIndex(subEndMo),
         fte: 0,
         rotated: false,
         rotatedFteCount: 0,
         inProgress: entry.inProgress,
         isResourceGroupChild: true,
-        poolDependsOn: poolDeps,
+        isPoolSubProject: true,
+        poolDependsOn: sub.poolDependsOn,
         _poolOrder: i + 1,
-      });
-      if (child.rowNumber != null) endByRow.set(child.rowNumber, dateFromMonthIndex(segEndMo));
-      cursor = segEndMo;
+        missingDurationData: false,
+      };
+      newResult.push(childEntry);
+      if (sub.project.rowNumber != null) {
+        endByRow.set(sub.project.rowNumber, dateFromMonthIndex(subEndMo));
+      }
     }
   }
 
@@ -403,48 +517,6 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
 export function getScheduleEnd(schedule) {
   if (!schedule?.length) return null;
   return new Date(Math.max(...schedule.map(s => s.endDate.getTime())));
-}
-
-/**
- * Reorder schedule for display so that projects that receive freed capacity
- * appear directly below the project that released them (releaser → receiver).
- * Keeps resource-group parent+children together as blocks.
- */
-export function orderByCapacityFlow(schedule) {
-  if (!schedule?.length) return schedule;
-  const blocks = [];
-  for (let i = 0; i < schedule.length; i++) {
-    const entry = schedule[i];
-    if (entry.isResourceGroupChild) {
-      blocks[blocks.length - 1].entries.push(entry);
-    } else {
-      blocks.push({ mainIndex: i, entries: [entry] });
-    }
-  }
-  const mainIndexToBlockIndex = new Map();
-  blocks.forEach((b, bi) => mainIndexToBlockIndex.set(b.mainIndex, bi));
-  const displayBlocks = [];
-  for (const block of blocks) {
-    const mainEntry = block.entries[0];
-    const fromIdx = mainEntry.releasedFromIndex;
-    if (fromIdx !== undefined && mainEntry.rotated) {
-      const releaserBlock = blocks[mainIndexToBlockIndex.get(fromIdx)];
-      if (releaserBlock) {
-        let insertAfter = displayBlocks.indexOf(releaserBlock);
-        while (insertAfter !== -1 && insertAfter + 1 < displayBlocks.length) {
-          const next = displayBlocks[insertAfter + 1];
-          if (next.entries[0].releasedFromIndex === fromIdx) insertAfter++;
-          else break;
-        }
-        if (insertAfter !== -1) {
-          displayBlocks.splice(insertAfter + 1, 0, block);
-          continue;
-        }
-      }
-    }
-    displayBlocks.push(block);
-  }
-  return displayBlocks.flatMap(b => b.entries);
 }
 
 /**

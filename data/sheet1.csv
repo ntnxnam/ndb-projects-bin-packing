@@ -1,12 +1,12 @@
-,FEAT NUMBER,SUMMARY,Priority,STATUS,3.0 Commitment Status,Target Month,Comment,DRI ,Dev Resources required for max parallization,Dev Resources required for max parallization and 60% productivity ,Total Months Needed for 1 person by Dev (Everything from start to finish),Number of Months (Dev),"Num of QA required(rule: 3:1, 1 QA for 3 dev)","Num of QA required(rule: 3:1, 1 QA for 3 dev) with 60% productivity ",Total resources required,sizing (refer sheet 2 for guidance),Additional Resources,Sizing Comment,Dependency Numbers (Comma Separated List),DEPENDENCY,One line dependency description ,Resourcing done?,Any new software needed? 
-1,FEAT-17977,Object to Object Replication,P0,In Progress,Committed,,,Manoj Dhende,3,5,15,5,1,1.666666667,6.666666667,XL (8-13 months),,,,Objects Team,"Not a blocker, but we have requested a few public facing APIs from them. ",Yes,
-2,ERA-54373,Objects Lite Integration,P0,Not Started,Committed,,,Manoj Dhende,3,5,18,6,1,1.666666667,6.666666667,XL (8-13 months),,,,Objects Team,Objects replication ,Yes,
-,ERA-54865,Objects ACL (Isolation of TM backedup dblogs data: security feature),P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,L (5-8 months),,,,Objects Team,,Yes,
-3,ERA-31655,Objects Connection Management,P0,Not Started,Committed,,,Manoj Dhende,1,1.666666667,6,6,1,1.666666667,3.333333333,L (5-8 months),,,,NA,,Yes,
-4,ERA-37117,Leaf Node Project (Move log bakcups schedule to dbserver node),P0,Not Started,Approved,,Need to define scope perhaps limited to 1 engine,Aparajita Raychaudhury,3,5,26,9,1,1.666666667,6.666666667,XXL (13+ months),,"Resource to critical mass, not max parallelize",37(Dev-blocker),Driver team,Dependency with driver team for re-writing the log catchup flow. ,Yes,
-5,FEAT-17279,Backup Policy,P0,Not Started,Approved,,Driving function for TM service.,Manoj Dhende,4,6.666666667,26,7,2,3.333333333,10,3L (21+ months),,,2,NA,,No,
-,FEAT-16813,Immutable bckups,P1,Not Started,Dropped,,,,,0,13+,,0,0,0,XL (8-13 months),,,,AOS(Maybe),,No,
-6,FEAT-17380,"NDB on SMSP (Marketplace integration, Migration, LCM, DR) : P0",P0,In Progress,Committed,," - LCM integration for upgrade
+Sl No,FEAT NUMBER,SUMMARY,Priority,STATUS,"How much of this is Completed in % (do not add %, just put a number)",3.0 Commitment Status,Target Month,Comment,DRI ,Total Months Needed for 1 person by Dev (Everything from start to finish),Dev Resources required for max parallization,Dev Resources required for max parallization and 60% productivity ,"Num of QA required(rule: 3:1, 1 QA for 3 dev)","Num of QA required(rule: 3:1, 1 QA for 3 dev) with 60% productivity ",Number of Months (Dev),Total resources required,sizing (refer sheet 2 for guidance),Additional Resources,Sizing Comment,Dependency Numbers (Comma Separated List),DEPENDENCY,One line dependency description ,Resourcing done?,Any new software needed? ,,Comments
+1,FEAT-17977,Object to Object Replication,P0,In Progress,10,Committed,,,Manoj Dhende,15,3,5,2,3.333333333,5,8.333333333,XL (8-13 months),,,,Objects Team,"Not a blocker, but we have requested a few public facing APIs from them. ",Yes,,,
+2,ERA-54373,Objects Lite Integration,P0,Not Started,0,Committed,,,Manoj Dhende,18,3,5,1,1.666666667,6,6.666666667,XL (8-13 months),,,,Objects Team,Objects replication ,Yes,,,
+,ERA-54865,Objects ACL (Isolation of TM backedup dblogs data: security feature),P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,L (5-8 months),,,,Objects Team,,Yes,,,
+3,ERA-31655,Objects Connection Management,P0,Not Started,0,Committed,,,Manoj Dhende,6,1,1.666666667,1,1.666666667,6,3.333333333,L (5-8 months),,,,NA,,Yes,,,
+4,ERA-37117,Leaf Node Project (Move log bakcups schedule to dbserver node),P0,Not Started,,Approved,,Need to define scope perhaps limited to 1 engine,Aparajita Raychaudhury,26,3,5,1,1.666666667,9,6.666666667,XXL (13+ months),,"Resource to critical mass, not max parallelize",37(Dev-blocker),Driver team,Dependency with driver team for re-writing the log catchup flow. ,Yes,,,
+5,FEAT-17279,Backup Policy,P0,Not Started,,Approved,,Driving function for TM service.,Manoj Dhende,26,4,6.666666667,2,3.333333333,7,10,3L (21+ months),,,2,NA,,No,,,
+,FEAT-16813,Immutable bckups,P1,Not Started,,Dropped,,,,13+,,0,0,0,#VALUE!,0,XL (8-13 months),,,,AOS(Maybe),,No,,,
+6,FEAT-17380,"NDB on SMSP (Marketplace integration, Migration, LCM, DR) : P0",P0,In Progress,10,Committed,," - LCM integration for upgrade
  - Migration
  - DR/B&R
  - Remove era cli from CP and provide alternative
@@ -22,7 +22,7 @@
 
  - SMSP KTLO (Issues in PC master builds)
 
- - Moving DB VM upgrade to GO is not part of 3.0",Rahul Khandelwal,8,13.33333333,96,12,3,5,18.33333333,XL (8-13 months),"3 (Pipelines, Deployments, Migration, DR/B&R, Upgrade, etc.)","Max Parallelize: 12 months, keeping 2 months buffer due to delays in external dependencies and unstability/issues in PC master build
+ - Moving DB VM upgrade to GO is not part of 3.0",Rahul Khandelwal,96,8,13.33333333,3,5,12,18.33333333,XL (8-13 months),"3 (Pipelines, Deployments, Migration, DR/B&R, Upgrade, etc.)","Max Parallelize: 12 months, keeping 2 months buffer due to delays in external dependencies and unstability/issues in PC master build
 
 
 - era cli removal and alternative outside CP is now added to scope for 3.0
@@ -32,156 +32,173 @@
 
 Objects lite","Dependency with DM team to provide the UI orchestration and support for custom hooks. Depdency on SM for providing required APIs to configure DR and failover/failback.
 
-Objects lite for upgrade",Yes,No
-7,,Cloud init (remove ODP) + Collect Logs without ODP + Mandate,P0,In Progress,Committed,,"Provision from TM Snapshot, Add remove replica, Static IP conflict removal, Ubuntu support",Sandeep Sudheendra,2,3.333333333,16,8,1,1.666666667,5,XL (8-13 months),,Max Parallelize,,Dependency to get API to read from console,,Yes,
-8,ERA-38582,Project Hermes,P0,In Progress,Committed,,"1. Sch Workflows
+Objects lite for upgrade",Yes,No,,
+7,,Cloud init (remove ODP) + Collect Logs without ODP + Mandate,P0,In Progress,,Committed,,"Provision from TM Snapshot, Add remove replica, Static IP conflict removal, Ubuntu support",Ankush Sonker,16,3,5,1,1.666666667,5,6.666666667,XL (8-13 months),,Max Parallelize,,Dependency to get API to read from console,,Yes,,,
+8,ERA-38582,Project Hermes,P0,In Progress,0,Committed,,"1. Sch Workflows
 2. Hermes Lite
 3. Security, Alerts
 4. Monitoring, FMEA
 5. Parallel exec support
-6. Suprises, bugs",Yashesh Mankad,5,8.333333333,15,3,2,3.333333333,11.66666667,XL (8-13 months),"Resources:
+6. Suprises, bugs",Yashesh Mankad,15,5,8.333333333,2,3.333333333,3,11.66666667,XL (8-13 months),"Resources:
 USA: Yashesh, Christian, Jay
 
 Require: 2 more engineers",Max Parallelize,"6, 27","NDB on SMSP
 Epsilon","SMSP capabilitiy
-Minor enhancements in Epsilon",Yes but 50% of max parallel ,N/A
-9,FEAT-18200,"DB in Containers - GA 
-[Milestone1: Provisioning, scale- veritical/horizontal/storage, Patching,",P0,In Progress,Committed,,,Aleksandar Tanasijevic,10,16.66666667,80,8,4,6.666666667,23.33333333,XL (8-13 months),"Resources:
+Minor enhancements in Epsilon",Yes but 50% of max parallel ,N/A,,
+9,FEAT-17682,"DB in Containers - GA 
+[Milestone1: Provisioning, scale- veritical/horizontal/storage, Patching,",P0,In Progress,10,Committed,,,Aleksandar Tanasijevic,80,10,16.66666667,4,6.666666667,8,23.33333333,XL (8-13 months),"Resources:
 US:  - 
 IND: - Manav, Sujit, Vaibhaw
 SRB: Aleksandar T, Marko, Boris, Minja
 UI: Chandra, Anjali
 
 Need: I backend. Prefernce IND Site
-Project Geo Split: IND/SRB",,"6, 8, 27, 28, 29, 30, 60, 61, 62, 63, 31, 32, ",FEAT-18798 [CSI/ NDK - Chandan Thakur],Nutanix CSI must support LVM - Logical Volume Manager (LVM spread across multiple disk are needed for DB performance),No [Partially funded],Yes - EDB PostgreSQL AI Licenses - Approx $10k if EDB is still included in 3.0 scope.
-10,,,,,,,,,,0,,,,0,0,,,,,FEAT-18200 [NDK] - Chandan Thakur ],NDK sync/async rep support for stretched NKP cluster ,,
-11,,,,,,,,,,0,,,,0,0,,,,,ENG-838666 [NDK - Chandan Thakur],NKP + NDK Baremetal Support,,
-12,,,,,,,,,,0,,,,0,0,,,,,FEAT-18878 [NDK - Chandan Thakur],Multiple PVs per pod for baremetal (needed for DB performance baremetal),,
-13,,,,,,,,,,0,,,,0,0,,,,,ENG-875856 [SMSP - Akanksha Singh],Mantle Support on SMSP- Secret Store for NDB,,
-14,,,,,,,,,,0,,,,0,0,,,,,ENG-875857 [SMSP - Gayathri Baskaran],Stats Gateway in SMSP for Expansion [Join Queries],,
-15,,,,,,,,,,0,,,,0,0,,,,,FEAT-18296 [IAMv2- NDB - Tarun Mehta],IAMv2 - NDB RBAC Capabilities,,
-16,,,,,,,,,,0,,,,0,0,,,,,ERA-38582 [Hermes - Yashesh Mankad],Hermes GA Capabilities,,
-17,,,,,,,,,,0,,,,0,0,,,,,FEAT-17380 [NDB on SMSP - Rahul Khandelwal],NDB on SMSP GA Capabilities,,
-18,,,,,,,,,,0,,,,0,0,,,,,ERA-37588 [Metrics Infra on SMSP - Boban Petković] ,"Adrasteia's new control plane services need infrastructure for exposing metrics. It should also address:
+Project Geo Split: IND/SRB",,"6, 8, 27, 28, 29, 30, 60, 61, 62, 63, 31, 32, ",FEAT-18798 [CSI/ NDK - Chandan Thakur],Nutanix CSI must support LVM - Logical Volume Manager (LVM spread across multiple disk are needed for DB performance),No [Partially funded],Yes - EDB PostgreSQL AI Licenses - Approx $10k if EDB is still included in 3.0 scope.,,
+10,,,,,,,,,,,,,,,,,,,,,FEAT-18200 [NDK] - Chandan Thakur ],NDK sync/async rep support for stretched NKP cluster ,,,,
+11,,,,,,,,,,,,,,,,,,,,,ENG-838666 [NDK - Chandan Thakur],NKP + NDK Baremetal Support,,,,
+12,,,,,,,,,,,,,,,,,,,,,FEAT-18878 [NDK - Chandan Thakur],Multiple PVs per pod for baremetal (needed for DB performance baremetal),,,,
+13,,,,,,,,,,,,,,,,,,,,,ENG-875856 [SMSP - Akanksha Singh],Mantle Support on SMSP- Secret Store for NDB,,,,
+14,,,,,,,,,,,,,,,,,,,,,ENG-875857 [SMSP - Gayathri Baskaran],Stats Gateway in SMSP for Expansion [Join Queries],,,,
+15,,,,,,,,,,,,,,,,,,,,,FEAT-18296 [IAMv2- NDB - Tarun Mehta],IAMv2 - NDB RBAC Capabilities,,,,
+16,,,,,,,,,,,,,,,,,,,,,ERA-38582 [Hermes - Yashesh Mankad],Hermes GA Capabilities,,,,
+17,,,,,,,,,,,,,,,,,,,,,FEAT-17380 [NDB on SMSP - Rahul Khandelwal],NDB on SMSP GA Capabilities,,,,
+18,,,,,,,,,,,,,,,,,,,,,ERA-37588 [Metrics Infra on SMSP - Boban Petković] ,"Adrasteia's new control plane services need infrastructure for exposing metrics. It should also address:
 1/ Live Debugging Metrics (engineering defined, for engineers)
-2/ Exporting Metrics for Offline Debugging ",,
-19,,,,,,,,,,0,,,,0,0,,,,,ERA-43142 [Logging Infra on SMSP - Boban Petković],"Logs from new control plane services must be collected and processed in the same manner as other SMSP based NDB services. Initial design does NOT include IDF, Ergon...
-This ask tracks list of all services and changes required to support logging",,
-20,,,,,,,,,,0,,,,0,0,,,,,ERA-47856 [Inter-service Communication for NDB Control Plane] - Matija Petrović,"""mTLS communication for new Adrasteia control plane services.
+2/ Exporting Metrics for Offline Debugging ",,,,
+19,,,,,,,,,,,,,,,,,,,,,ERA-43142 [Logging Infra on SMSP - Boban Petković],"Logs from new control plane services must be collected and processed in the same manner as other SMSP based NDB services. Initial design does NOT include IDF, Ergon...
+This ask tracks list of all services and changes required to support logging",,,,
+20,,,,,,,,,,,,,,,,,,,,,ERA-47856 [Inter-service Communication for NDB Control Plane] - Matija Petrović,"""mTLS communication for new Adrasteia control plane services.
 Additional Project Adrasteia related jiras:
-1/ ERA-53330 - deploy waypoint L7 proxy for traffic service-level metrics (Done)""",,
-21,,,,,,,,,,0,,,,0,0,,,,,ERA-49558 [NATS on SMSP] - Shurya Kumar N S,Setup NATS infrastructure for NDB on SMSP,,
-22,,,,,,,,,,0,,,,0,0,,,,,ERA-TBD [Tracing on SMSP] - Boban Petković,"Tracing support for SMSP where DB in Containers service hook into. 
-[This tracing needs to end-to-end that includes Hermes/Epsilon]",,
-23,,,,,,,,,,0,,,,0,0,,,,,ERA -TBD [DB In Containers Data Plane Log Collection] - Boban Petković,This effort should figure out how we want to handle log collection on data plane for DB in containers project for GA. ,,
-24,,,,,,,,,,0,,,,0,0,,,,,ERA-TBD [Alerts Manager/ policy seeding support on SMSP] - Boban Petković,Alerts policy seeding framework that exists today should be ported to or an equivalent framework must be provided for the SMSP stack. These Alerts have capbilities to export to PC Alert Manager or run PC Alert Manager on SMSP itself.,,
-25,,,,,,,,,,0,,,,0,0,,,,,ERA-TBD [Data Plane Monitoring for DBs in contaners] - Boban Petković,"Database Monitoring for PG support as it was added in 2.10 for exporting metrics for databases on VMs (pg only for now with pg_exporter, node_exporte, etc.) is needed for databases in containers ",,
-26,FEAT-18200,DB in Containers - GA [Milestone 2: Time Machine] ,P0,In Progress,Committed,,,Deepak Srinath,10,16.66666667,100,10,4,6.666666667,23.33333333,XL (8-13 months),"Resources: 
+1/ ERA-53330 - deploy waypoint L7 proxy for traffic service-level metrics (Done)""",,,,
+21,,,,,,,,,,,,,,,,,,,,,ERA-49558 [NATS on SMSP] - Shurya Kumar N S,Setup NATS infrastructure for NDB on SMSP,,,,
+22,,,,,,,,,,,,,,,,,,,,,ERA-TBD [Tracing on SMSP] - Boban Petković,"Tracing support for SMSP where DB in Containers service hook into. 
+[This tracing needs to end-to-end that includes Hermes/Epsilon]",,,,
+23,,,,,,,,,,,,,,,,,,,,,ERA -TBD [DB In Containers Data Plane Log Collection] - Boban Petković,This effort should figure out how we want to handle log collection on data plane for DB in containers project for GA. ,,,,
+24,,,,,,,,,,,,,,,,,,,,,ERA-TBD [Alerts Manager/ policy seeding support on SMSP] - Boban Petković,Alerts policy seeding framework that exists today should be ported to or an equivalent framework must be provided for the SMSP stack. These Alerts have capbilities to export to PC Alert Manager or run PC Alert Manager on SMSP itself.,,,,
+25,,,,,,,,,,,,,,,,,,,,,ERA-TBD [Data Plane Monitoring for DBs in contaners] - Boban Petković,"Database Monitoring for PG support as it was added in 2.10 for exporting metrics for databases on VMs (pg only for now with pg_exporter, node_exporte, etc.) is needed for databases in containers ",,,,
+26,FEAT-18002,DB in Containers - GA [Milestone 2: Time Machine] ,P0,Not Started,,Dropped,,,Deepak Srinath,0,0,0,0,0,#DIV/0!,0,XL (8-13 months),"Resources: 
 USA : Deepak, Anudeep, Olivier, Vitthal, Tejas 
 IND: 
 SRB: 
 
 No UI resource required. Tejas will be full-stack.
 
-Need 5 backend engineers. Project Geo Split: USA/ IND",,26,DB in Containers - Milestone 1,,No,
-,TBD - NDB AI Lab Framework,"Publish and deploy NDB AI Apps and ship as part of 3.0, Create a contained/ isolated enviornment for App to run without impacting NDB",P1,Not Started,Deferral Candidate,,Framework is part of SMSP,,3,5,5 months,,1,1.666666667,6.666666667,L (5-8 months),,,,,,No,No
-27,,Service Monitoring infra + service health alerting + Marketplace health status,P0,Not Started,Committed,,,Boban Petković,2,3.333333333,4,2,1,1.666666667,5,M (3-5 months),,,,"1. MSP - Clarity on future plans for tracing and centralized log management
+Need 5 backend engineers. Project Geo Split: USA/ IND",,26,"FEAT-17682
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+",DB in Containers - Milestone 1,No,,,
+,TBD - NDB AI Lab Framework,"Publish and deploy NDB AI Apps and ship as part of 3.0, Create a contained/ isolated enviornment for App to run without impacting NDB",P1,Not Started,,Deferral Candidate,,Framework is part of SMSP,,5 months,3,5,1,1.666666667,#VALUE!,6.666666667,L (5-8 months),,,,,,No,No,,
+27,,Service Monitoring infra + service health alerting + Marketplace health status,P0,Not Started,0,Committed,,,Boban Petković,4,2,3.333333333,1,1.666666667,2,5,M (3-5 months),,,,"1. MSP - Clarity on future plans for tracing and centralized log management
 2. CPaaS - Guidance on ClickHouse adoption","1. We need to ensure we don't build our observability stack and have MSP introduce a new solution and deploy it as part of MSP platfrom
-2. We need to make sure CPaaS team provides complete helm charts for clickhouse stack",No,No
-28,,DB on containers data plane log management/collection ,P0,Not Started,Committed,,,Boban Petković,3,5,6,2,1,1.666666667,6.666666667,L (5-8 months),,,,,,No,No
-29,ERA-43142,SMSP log management + Diag bundle collection,P0,In Progress,Committed,,,Boban Petković,2,3.333333333,4,2,1,1.666666667,5,M (3-5 months),,,,"1. ENG-795244 - MSP - Scavenger configuration for per-service retention and log file type
+2. We need to make sure CPaaS team provides complete helm charts for clickhouse stack",No,No,,[20/Feb] Currently we are in the process of discussing this with MSP and CPaaS team about the capabilities they already provide. Based on the outcome of these discussion we will know if we have some dependency on them or they already provide everything we need. I expect I will have some clarity next week
+28,,DB on containers data plane log management/collection ,P0,Not Started,0,Committed,,,Boban Petković,6,3,5,1,1.666666667,2,6.666666667,L (5-8 months),,,,,,No,No,,
+29,ERA-43142,SMSP log management + Diag bundle collection,P0,In Progress,0,Committed,,,Boban Petković,4,2,3.333333333,1,1.666666667,2,5,M (3-5 months),,,,"1. ENG-795244 - MSP - Scavenger configuration for per-service retention and log file type
 2. ENG-835588 - MSP - NDB DR solution for Fluentd PV where SMSP logs are persisted
 3. UX/UI","1. Currently it seems there is no possibility to configure scavenger, which runs on fluentd pod as sidecar container, per service or log type. For different services, and even log types, we would like to have ability to use different retention config as not all logs are equally important. Scavenger provides this flexibility, but it seems we can't configure it via SMSP
-2. NDB application runs inside the app k8s namespace ntnx-ndb on SMSP, while the SMSP-recommended logging components operate in the ntnx-system namespace. This setup raises some questions for us regarding how disaster recovery (NDK DR) should be handled. Based on our initial exploration of NDK, it appears that its unit of protection is scoped to one namespace (the application namespace). This implies that logs and application resources may not be protected as a single unit, which could pose challenges for backup and recovery scenarios.",Yes,No
-,,Use objects for diagnostic bundle,P1,Not Started,Deferral Candidate,,,,2,3.333333333,2,,1,1.666666667,5,M (3-5 months),,,,1. Objects Lite feature,,No,No
-,,Moving diganostic bundle to new microservice,P1,Not Started,Deferral Candidate,,"As we have more SMSP services, we need a new service to handle diagnostic bundle creation. We should extract diagnostic related logic from API server into this new microservice ",,2,3.333333333,2,,1,1.666666667,5,M (3-5 months),,,,,,,
-,,Supportability service - changing log levels for SMSP services,P0,Not Started,Deferral Candidate,,A service to change log levels for all SMSP services from one place,,1,1.666666667,2,,1,1.666666667,3.333333333,S (1-3 months),,,,,,No,
-30,,Tracing framework for instrumentation from new services in SMSP,P0,Not Started,Committed,,Create libraries,Boban Petković,1,1.666666667,2,2,1,1.666666667,3.333333333,S (1-3 months),,,,,,No,No
-,,Collection of traces in diagnostic bundle,P1,Not Started,Deferral Candidate,,,,1,1.666666667,1,,1,1.666666667,3.333333333,XS (1 month),,,,,,No,No
-31,,Collection of metrics diagnostic bundle,P0,Not Started,Committed,,,Boban Petković,1,1.666666667,1,1,1,1.666666667,3.333333333,XS (1 month),,,,,,,
+2. NDB application runs inside the app k8s namespace ntnx-ndb on SMSP, while the SMSP-recommended logging components operate in the ntnx-system namespace. This setup raises some questions for us regarding how disaster recovery (NDK DR) should be handled. Based on our initial exploration of NDK, it appears that its unit of protection is scoped to one namespace (the application namespace). This implies that logs and application resources may not be protected as a single unit, which could pose challenges for backup and recovery scenarios.",Yes,No,,
+,,Use objects for diagnostic bundle,P1,Not Started,,Deferral Candidate,,,,2,2,3.333333333,1,1.666666667,1,5,M (3-5 months),,,,1. Objects Lite feature,,No,No,,
+,,Moving diganostic bundle to new microservice,P1,Not Started,,Deferral Candidate,,"As we have more SMSP services, we need a new service to handle diagnostic bundle creation. We should extract diagnostic related logic from API server into this new microservice ",,2,2,3.333333333,1,1.666666667,1,5,M (3-5 months),,,,,,,,,
+,,Supportability service - changing log levels for SMSP services,P0,Not Started,,Deferral Candidate,,A service to change log levels for all SMSP services from one place,,2,1,1.666666667,1,1.666666667,2,3.333333333,S (1-3 months),,,,,,No,,,
+30,,Tracing framework for instrumentation from new services in SMSP,P0,Not Started,0,Committed,,Create libraries,Boban Petković,2,1,1.666666667,1,1.666666667,2,3.333333333,S (1-3 months),,,,,,No,No,,
+,,Collection of traces in diagnostic bundle,P1,Not Started,,Deferral Candidate,,,,1,1,1.666666667,1,1.666666667,1,3.333333333,XS (1 month),,,,,,No,No,,
+31,,Collection of metrics diagnostic bundle,P0,Not Started,0,Committed,,,Boban Petković,1,1,1.666666667,1,1.666666667,1,3.333333333,XS (1 month),,,,,,,,,
 32,,"Librarary for business telemetry via Pulse/CFS
-",P0,Not Started,Committed,,,Boban Petković,1,1.666666667,2,2,1,1.666666667,3.333333333,S (1-3 months),,,,1. ENG-867778 - NCC - CFS (telemetry transmission mechanism) running on SMSP,"In order to send telemetry data to insights, we need pulse collection framework deployed on NDB SMSP",No,No
+",P0,Not Started,0,Committed,,,Boban Petković,2,1,1.666666667,1,1.666666667,2,3.333333333,S (1-3 months),,,,1. ENG-867778 - NCC - CFS (telemetry transmission mechanism) running on SMSP,"In order to send telemetry data to insights, we need pulse collection framework deployed on NDB SMSP",No,No,,
 33,"Go Based WFs 
-(Services Onboarding)
-
-~8 people/3 months
-Phase 1: Data plane rewrite",Go Based WFs (OS Service),P0,In Progress,Committed,,In Progress (with 1 resource),Omkar Pradeep Salvi,2,3.333333333,6,3,1,1.666666667,5,S (1-3 months),,,,NA,,No,
-34,,Go Based WFs (DB Service),P0,In Progress,Committed,,In Progress (with 1 resource),Omkar Pradeep Salvi,2,3.333333333,6,3,1,1.666666667,5,S (1-3 months),,,,NA,,No,
-35,,Go Based WFs (DB LCM Service),P0,Not Started,Committed,,,Omkar Pradeep Salvi,2,3.333333333,6,3,1,1.666666667,5,S (1-3 months),,,,NA,,No,
-36,,Go Based WFs (TM Service),P0,Not Started,Committed,,,Omkar Pradeep Salvi,2,3.333333333,6,3,1,1.666666667,5,S (1-3 months),,,,NA,,No,
-37,Go Based WFs - Control Plane Rewrite,V4 API structure for TM,P0,Not Started,Committed,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-38,,Java to Go Business logic for TM movement.,P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-39,,PG to IDF migration for VMs,P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-40,,IDF schema for TM for VMs,P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
+(Services Onboarding) Phase 1: Data plane rewrite",Go Based WFs (OS Service),P0,In Progress,25,Committed,,In Progress (with 1 resource),Omkar Pradeep Salvi,6,2,3.333333333,1,1.666666667,3,5,S (1-3 months),,,,NA,,No,,,
+34,"Go Based WFs 
+(Services Onboarding) Phase 1: Data plane rewrite",Go Based WFs (DB Service),P0,In Progress,40,Committed,,In Progress (with 1 resource),Omkar Pradeep Salvi,6,2,3.333333333,1,1.666666667,3,5,S (1-3 months),,,,NA,,No,,,
+35,"Go Based WFs 
+(Services Onboarding) Phase 1: Data plane rewrite",Go Based WFs (DB LCM Service),P0,Not Started,0,Committed,,,Omkar Pradeep Salvi,6,2,3.333333333,1,1.666666667,3,5,S (1-3 months),,,,NA,,No,,,
+36,"Go Based WFs 
+(Services Onboarding) Phase 1: Data plane rewrite",Go Based WFs (TM Service),P0,Not Started,0,Committed,,,Omkar Pradeep Salvi,6,2,3.333333333,1,1.666666667,3,5,S (1-3 months),,,,NA,,No,,,
+37,Go Based WFs - Control Plane Rewrite,V4 API structure for TM,P0,Not Started,,Committed,,,Suseendran Babu N,6,3,5,1,1.666666667,2,6.666666667,L (5-8 months),,,,,,,,,
+38,,Java to Go Business logic for TM movement.,P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+39,,PG to IDF migration for VMs,P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+40,,IDF schema for TM for VMs,P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
 41,"Go Based WF
 (Workflow Migration - MySQL)
-Phase 2:
-~18 people/10 months","Software Profile Creation
-- ECDR Based",P0,Not Started,Committed,,,Omkar Pradeep Salvi,2,3.333333333,18,9,1,1.666666667,5,XL (8-13 months),,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,
-42,,Create DBServer VM (Provision SI) from SW profile,P0,Not Started,Approved,,,Omkar Pradeep Salvi,2,3.333333333,12,6,1,1.666666667,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 41",,,,
+Phase 2:","Software Profile Creation
+- ECDR Based",P0,Not Started,0,Committed,,,Omkar Pradeep Salvi,18,2,3.333333333,1,1.666666667,9,5,XL (8-13 months),,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,,,
+42,,Create DBServer VM (Provision SI) from SW profile,P0,Not Started,,Approved,,,Omkar Pradeep Salvi,12,2,3.333333333,1,1.666666667,6,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 41",,,,,,
 43,,"Create DBServer VM (Provision SI)
-from TM snapshot",P0,Not Started,Approved,,,Omkar Pradeep Salvi,,0,,#DIV/0!,0,0,0,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,
-44,,Cloud Init to Go,P0,Not Started,Approved,,,Omkar Pradeep Salvi,1,1.666666667,5,5,1,1.666666667,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker),7",,,,
-45,,Register DBServer (via Cloud Init) (Provision SI),P0,Not Started,Approved,,,Omkar Pradeep Salvi,2,3.333333333,20,10,1,1.666666667,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,
-46,,Brownfield Register DBServer,P0,Not Started,Approved,,,Omkar Pradeep Salvi,3,5,30,10,1,1.666666667,6.666666667,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,
-47,,Provision DB(Provision SI),P0,Not Started,Approved,,,Omkar Pradeep Salvi,1,1.666666667,9,9,1,1.666666667,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,
-48,,Register DB (Provision SI),P0,Not Started,Approved,,,Omkar Pradeep Salvi,2,3.333333333,18,9,1,1.666666667,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,
-49,,Snapshot (ECDR),P0,Not Started,Committed,,,Omkar Pradeep Salvi,2,3.333333333,14,7,1,1.666666667,5,L (5-8 months),,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 57",,,,
-50,,Clone SI DB (ECDR),P0,Not Started,Approved,,,Omkar Pradeep Salvi,2,3.333333333,18,9,1,1.666666667,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,
-51,,Replication,P0,Not Started,Approved,,,Omkar Pradeep Salvi,1,1.666666667,7,7,1,1.666666667,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,
-52,,Curation Snapshot,P0,Not Started,Approved,,,Omkar Pradeep Salvi,1,1.666666667,5,5,1,1.666666667,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,
+from TM snapshot",P0,Not Started,,Approved,,,Omkar Pradeep Salvi,,,0,0,0,#DIV/0!,0,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,,,
+44,,Cloud Init to Go,P0,Not Started,,Approved,,,Omkar Pradeep Salvi,5,1,1.666666667,1,1.666666667,5,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker),7",,,,,,
+45,,Register DBServer (via Cloud Init) (Provision SI),P0,Not Started,,Approved,,,Omkar Pradeep Salvi,20,2,3.333333333,1,1.666666667,10,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,,,
+46,,Brownfield Register DBServer,P0,Not Started,,Approved,,,Omkar Pradeep Salvi,30,3,5,1,1.666666667,10,6.666666667,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,,,
+47,,Provision DB(Provision SI),P0,Not Started,,Approved,,,Omkar Pradeep Salvi,9,1,1.666666667,1,1.666666667,9,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,,,
+48,,Register DB (Provision SI),P0,Not Started,,Approved,,,Omkar Pradeep Salvi,18,2,3.333333333,1,1.666666667,9,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker)",,,,,,
+49,"Go Based WF
+(Workflow Migration - MySQL)
+Phase 2:",Snapshot (ECDR),P0,Not Started,0,Committed,,,Omkar Pradeep Salvi,14,2,3.333333333,1,1.666666667,7,5,L (5-8 months),,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 57",,,,,,
+50,,Clone SI DB (ECDR),P0,Not Started,,Approved,,,Omkar Pradeep Salvi,18,2,3.333333333,1,1.666666667,9,5,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,,,
+51,,Replication,P0,Not Started,,Approved,,,Omkar Pradeep Salvi,7,1,1.666666667,1,1.666666667,7,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,,,
+52,,Curation Snapshot,P0,Not Started,,Approved,,,Omkar Pradeep Salvi,5,1,1.666666667,1,1.666666667,5,3.333333333,,,,"33 (dev-blocker),34  (dev-blocker),35  (dev-blocker),36  (dev-blocker), 49",,,,,,
 ,"Go Based WF
 (Workflow Migration - MySQL)
 Phase 3:
 ~18 people/10 months","Software Profile Replication (ECDR based)
-Replication can be reused",P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,2 month/1 person,,1,1.666666667,3.333333333,,,,,,,,
-,,Refresh SI (ECDR),P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,2,3.333333333,6 months/2 person,,1,1.666666667,5,,,,,,,,
-,,Restore SI (ECDR),P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,2,3.333333333,,,1,1.666666667,5,,,,,,,,
+Replication can be reused",P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,2 month/1 person,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Refresh SI (ECDR),P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,6 months/2 person,2,3.333333333,1,1.666666667,#VALUE!,5,,,,,,,,,,
+,,Restore SI (ECDR),P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,,2,3.333333333,1,1.666666667,0,5,,,,,,,,,,
 ,,"Log Catchup/Log Copy
 (Open Question/Overlap with Leaf Node)
-SI/HA DBs",P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,0,0,?,,0,0,0,,,,,,,,
-,,Clone HA -> HA,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,?,,1,1.666666667,3.333333333,,,,,,,,
-,,Refresh HA -> HA,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,?,,1,1.666666667,3.333333333,,,,,,,,
-,,Restore HA (ECDR),P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,?,,1,1.666666667,3.333333333,,,,,,,,
-,,Extend Storage SI,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,2,3.333333333,?,,1,1.666666667,5,,,,,,,,
-,,Extend Storage HA,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,?,,1,1.666666667,3.333333333,,,,,,,,
-,,Provision HA,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,3,5,8 months/3 people,,1,1.666666667,6.666666667,,,,,,,,
-,,Snapshot (for HA DBs),P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,2,3.333333333,4 months/2 people,,1,1.666666667,5,,,,,,,,
-,,Clone/Restore/Refresh - PITR based,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,6 months/1 people,,1,1.666666667,3.333333333,,,,,,,,
-,,Curate DBServer,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,3 month/1 people,,1,1.666666667,3.333333333,,,,,,,,
-,,Curate Time Machine/DB,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,5 months/1 people,,1,1.666666667,3.333333333,,,,,,,,
-,,Curation Software Profiles,P0,Not Started,Dropped,,3.1?,Omkar Pradeep Salvi,1,1.666666667,3 month/1 people,,1,1.666666667,3.333333333,,,,,,,,
-75,,Overall Upgrade feature for new services,P0,Not Started,Dropped,,,Rahul Khandelwal,,0,,#DIV/0!,0,0,0,,,,,,,,
-76,,Remove NDB Agent dependency,P0,Not Started,Dropped,,,TBD,,0,,#DIV/0!,0,0,0,,,,,,,,
-53,,Mandate PC for 3.0 for all underlying registered PEs [Upgrade Path],P0,Not Started,Approved,,,TBD,,0,,#DIV/0!,0,0,0,,,,,,,,
+SI/HA DBs",P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,0,0,0,0,#VALUE!,0,,,,,,,,,,
+,,Clone HA -> HA,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Refresh HA -> HA,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Restore HA (ECDR),P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Extend Storage SI,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,2,3.333333333,1,1.666666667,#VALUE!,5,,,,,,,,,,
+,,Extend Storage HA,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,?,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Provision HA,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,8 months/3 people,3,5,1,1.666666667,#VALUE!,6.666666667,,,,,,,,,,
+,,Snapshot (for HA DBs),P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,4 months/2 people,2,3.333333333,1,1.666666667,#VALUE!,5,,,,,,,,,,
+,,Clone/Restore/Refresh - PITR based,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,6 months/1 people,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Curate DBServer,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,3 month/1 people,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Curate Time Machine/DB,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,5 months/1 people,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+,,Curation Software Profiles,P0,Not Started,,Dropped,,3.1?,Omkar Pradeep Salvi,3 month/1 people,1,1.666666667,1,1.666666667,#VALUE!,3.333333333,,,,,,,,,,
+75,,Overall Upgrade feature for new services,P0,Not Started,,Dropped,,,Rahul Khandelwal,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+76,,Remove NDB Agent dependency,P0,Not Started,,Dropped,,,TBD,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+53,,Mandate PC for 3.0 for all underlying registered PEs [Upgrade Path],P0,Not Started,,Approved,,,TBD,,,0,0,0,#DIV/0!,0,,,,,,,,,,
 54,,"New PE registration - Add support for mandating PC registration
-[New PE registration]",P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-,,Support for ESXi,P0,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-55,,Upgrade support for TM snapshots,P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-81,,Upgrade of existing Software Profiles,P0,Not Started,Dropped,,,TBD,,0,,#DIV/0!,0,0,0,,,,,,,,
-56,,MSSQL Server existing DB migration to VGs,P0,Not Started,Approved,,,,,0,,#DIV/0!,0,0,0,,,Need more discussion,,,,,
-57,,AOS auto curation of snapshots,P0,Not Started,Committed,,,Aleksandar Minic,3,5,9,3,1,1.666666667,6.666666667,XL (8-13 months),,,,,,,
-59,IAMv2 ,"IAMv2 - User onboarding (Login, EULA , Password reset UX etc) ",P0,Not Started,Committed,,,,5,8.333333333,45,9,2,3.333333333,11.66666667,M (3-5 months),,,,"UI, UX,IAMv2","Working on POC, to determine actual changes",,
-60,,IAMv2 - Session management,P0,Not Started,Committed,,,,,0,,,0,0,0,S (1-3 months),,,,"UI, Mercury team(Logout API)",ENG-861229,,
-61,,IAMv2 - Design schema (ACPs etc) in IAMv2,P0,Not Started,Committed,,,,,0,,,0,0,0,S (1-3 months),,,,,,,
-62,,IAMv2 - Framework (includes new internal authz component) use IAMv2,P0,Not Started,Committed,,,,,0,,,0,0,0,L (5-8 months),,,,,,,
-63,,"IAMv2 - RBAC migration to IAMv2(existing Users, Roles, Policies migration to IAMv2)",P0,Not Started,Committed,,,,,0,,,0,0,0,M (3-5 months),,,,,,,
-64,,IAMv2 - Entity Sharing functional equivalency,P0,Not Started,Committed,,,,,0,,,0,0,0,S (1-3 months),,,,UX/UI,,,
-65,,IAMv2 - DR/Backup of IAMv2,P0,Not Started,Committed,,,,,0,,,0,0,0,S (1-3 months),,,,,,,
-66,,IAMv2 - Scale testing,P0,Not Started,Committed,,,,,0,,,0,0,0,S (1-3 months),,,,QA,,,
-67,,IAMv2 - Code refactoring (Example pattern and actual changes),P0,Not Started,Committed,,,,,0,,,0,0,0,XL (8-13 months),,,,Code owners,,,
-93,,IAMv2 - Remove /i calls from UI,P1,Not Started,Dropped,,,,,0,,#DIV/0!,0,0,0,,,,,,,,
-,[MSSQL] C# based OS and DB services Framework ,Framework (repo + build + skeleton),P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-,,LCM,P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-,,OS service RPC contracts,P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-,,DB service RPC contracts,P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-,,RPC integration with NDBAgent,P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-68,ERA-TBD [Alerts Manager/ policy seeding support on SMSP] ,"Alert Library that sends alert to current framework now, can send to PC Alert Manager once its available on SMSP",P0,Not Started,Approved,,,Krunal,0,0,0,0,0,0,0,,,,,,,,
+[New PE registration]",P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,,Support for ESXi,P0,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+55,,Upgrade support for TM snapshots,P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+81,,Upgrade of existing Software Profiles,P0,Not Started,,Dropped,,,TBD,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+56,,MSSQL Server existing DB migration to VGs,P0,Not Started,,Approved,,,,,,0,0,0,#DIV/0!,0,,,Need more discussion,,,,,,,
+57,,AOS auto curation of snapshots,P0,Not Started,,Committed,,,Aleksandar Minic,9,3,5,1,1.666666667,3,6.666666667,XL (8-13 months),,,,,,,,,
+59,IAMV2,"IAMv2 - User onboarding (Login, EULA , Password reset UX etc) ",P0,Not Started,,Committed,,,,45,6,10,2,3.333333333,8,13.33333333,M (3-5 months),,,,"UI, UX,IAMv2","Working on POC, to determine actual changes",,,,
+60,IAMV2,IAMv2 - Session management,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,,"UI, Mercury team(Logout API)",ENG-861229,,,,
+61,IAMV2,IAMv2 - Design schema (ACPs etc) in IAMv2,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,,,,,,,
+62,IAMV2,IAMv2 - Framework Use Case Discovery,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,,,,,,,
+106,IAMV2,IAMv2 - Framework (includes new internal authz component) use IAMv2,P0,Not Started,,Committed,,,,,,,,,,,M (3-5 months),,,62 (dev-blocker),,,,,,
+63,IAMV2,"IAMv2 - RBAC migration to IAMv2(existing Users, Roles, Policies migration to IAMv2)",P0,Not Started,,Committed,,,,,,,,,,,M (3-5 months),,,62 (dev-blocker),,,,,,
+64,IAMV2,IAMv2 - DBVM Authz (Service Account),P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,,UX/UI,,,,,
+65,IAMV2,IAMv2 - DR/Backup of IAMv2,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,,,,,,,
+66,IAMV2,IAMv2 - Scale testing,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,"59 (dev-blocker), 60 (dev-blocker), 61 (dev-blocker), 62 (dev-blocker), 63 (dev-blocker), 64 (dev-blocker), 65 (dev-blocker)",QA,,,,,
+67,IAMV2,IAMv2 - Code refactoring (Example pattern) - One sample API,P0,Not Started,,Committed,,,,,,,,,,,S (1-3 months),,,106 (dev-blocker),Code owners,,,,,
+104,IAMV2,IAMv2 - Code refactoring (Example pattern and actual changes) - All APIs,P0,Not Started,,Committed,,,,,,,,,,,XL (8-13 months),,,67 (dev-blocker),,,,,,
+105,IAMV2,UI Workflow integration,P0,Not Started,,Committed,,,Suseendran Babu N,8,2,3.333333333,1,1.666666667,4,5,XL (8-13 months),,,,,,,,,
+96,,IAMv2 - Remove /i calls from UI,P1,Not Started,,Dropped,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,[MSSQL] C# based OS and DB services Framework ,Framework (repo + build + skeleton),P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,,LCM,P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,,OS service RPC contracts,P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,,DB service RPC contracts,P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+,,RPC integration with NDBAgent,P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+68,ERA-TBD [Alerts Manager/ policy seeding support on SMSP] ,"Alert Library that sends alert to current framework now, can send to PC Alert Manager once its available on SMSP",P0,Not Started,,Approved,,,Krunal,0,0,0,0,0,#DIV/0!,0,,,,,,,,,,
 ,,"Alerts Manager support on NDB-SMSP:
 Alerts policy seeding framework that exists today must be provided for the SMSP stack. These Alerts have capbilities to export to PC Alert Manager or run PC Alert Manager on SMSP itself.
-",P1,Not Started,Deferral Candidate,,,,,0,,,0,0,0,,,,,,,,
-,,EVerything DevProd,,,,,,,,,,#DIV/0!,,0,0,,,,,,,,
-,,,,,,,,,,,,#DIV/0!,,,0,,,,,,,,
-,,,,,,,,,,,,#DIV/0!,,,0,,,,,,,,
-104,,,,,,,,,123,205,658,5.349593496,,,205,,,,,,,,
-,,Error Code Framework,P0,Not Started,Committed,,,,,1,4,2,0,0,1,XL (8-13 months),,,,,,,
+",P1,Not Started,,Deferral Candidate,,,,,,0,0,0,#DIV/0!,0,,,,,,,,,,
+104,,Everything DevProd,P0,Not Started,,Approved,,,,0,0,0,1,1.666666667,#DIV/0!,1.666666667,3L (21+ months),,,,,,,,,
+68,,Error Code Framework,P0,Not Started,,Committed,,,,4,1,1.666666667,1,1.666666667,4,3.333333333,L (5-8 months),,,,,,,,,

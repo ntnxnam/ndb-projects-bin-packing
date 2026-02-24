@@ -5,7 +5,7 @@
  */
 
 import { logger } from './logger.js';
-import { UPLOAD_STORAGE_KEY, FILTERS_STORAGE_KEY } from './config.js';
+import { UPLOAD_STORAGE_KEY, SCHEDULE_STORAGE_KEY, FILTERS_STORAGE_KEY } from './config.js';
 
 /**
  * Load projects from localStorage (previously uploaded CSV/JSON).
@@ -36,6 +36,38 @@ export function setProjects(projects) {
     logger.debug('state.setProjects: saved', projects.length, 'projects');
   } catch (e) {
     logger.warn('state.setProjects: failed to persist', e);
+  }
+}
+
+/**
+ * Load schedule-ready projects (Committed-only, cleaned) from localStorage.
+ * @returns {Array<object>}
+ */
+export function getScheduleData() {
+  try {
+    const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    logger.debug('state.getScheduleData: loaded', parsed.length, 'projects');
+    return parsed;
+  } catch (e) {
+    logger.warn('state.getScheduleData: invalid stored data', e);
+    return [];
+  }
+}
+
+/**
+ * Persist schedule-ready projects to localStorage.
+ * @param {Array<object>} projects
+ */
+export function setScheduleData(projects) {
+  try {
+    if (!Array.isArray(projects)) return;
+    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(projects));
+    logger.debug('state.setScheduleData: saved', projects.length, 'projects');
+  } catch (e) {
+    logger.warn('state.setScheduleData: failed to persist', e);
   }
 }
 

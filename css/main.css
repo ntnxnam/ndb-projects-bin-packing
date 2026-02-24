@@ -381,8 +381,8 @@ a.tab {
 }
 
 .gantt-labels {
-  flex: 0 0 280px;
-  min-width: 280px;
+  flex: 0 0 352px;
+  min-width: 352px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
@@ -403,8 +403,10 @@ a.tab {
   box-sizing: border-box;
 }
 
+.gantt-labels-header .gantt-col-sl { width: 44px; min-width: 44px; flex-shrink: 0; }
 .gantt-labels-header .gantt-col-b { width: 90px; min-width: 90px; flex-shrink: 0; }
 .gantt-labels-header .gantt-col-c { flex: 1; min-width: 0; padding-left: 6px; }
+.gantt-labels-header .gantt-col-available { width: 72px; min-width: 72px; flex-shrink: 0; }
 
 .gantt-labels-rows {
   position: relative;
@@ -429,6 +431,14 @@ a.tab {
   border-left: 3px solid var(--accent);
 }
 
+.gantt-label-row .gantt-col-sl {
+  width: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 .gantt-label-row .gantt-col-b {
   width: 90px;
   min-width: 90px;
@@ -446,6 +456,19 @@ a.tab {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.gantt-label-row .gantt-col-available {
+  width: 72px;
+  min-width: 72px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.gantt-bar-sl-no {
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
 }
 
 .gantt-chart-scroll {
@@ -509,30 +532,79 @@ a.tab {
   min-height: 200px;
 }
 
-/* Background layer: dotted boxes around groups (no top-level bar) */
-.gantt-track-background {
+/* Peer group wrapper: dotted border around related bars (no grey bar) */
+.gantt-peer-wrapper {
   position: absolute;
   left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  box-sizing: border-box;
+  border: 1px dashed rgba(88, 166, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(88, 166, 255, 0.03);
   pointer-events: none;
   z-index: 0;
 }
 
-.gantt-group-box {
+.gantt-peer-wrapper-label {
   position: absolute;
-  left: 0;
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px dashed rgba(110, 118, 129, 0.6);
-  border-radius: 6px;
-  background: rgba(110, 118, 129, 0.04);
+  top: -9px;
+  left: 8px;
+  font-size: 0.6rem;
+  color: rgba(88, 166, 255, 0.7);
+  background: var(--surface);
+  padding: 0 4px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.gantt-labels-background {
-  z-index: 0;
+/* Tier divider: lightweight section header between In Progress / Ready / Waiting */
+.gantt-tier-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
 }
+
+.gantt-tier-divider::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(110, 118, 129, 0.25);
+}
+
+.gantt-tier-divider-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(200, 210, 225, 0.7);
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.gantt-tier-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(110, 118, 129, 0.25);
+}
+
+.gantt-label-row--tier-divider {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(110, 118, 129, 0.15);
+}
+
+.gantt-label-row--tier-divider .gantt-tier-divider-label {
+  padding: 0 4px;
+}
+
 
 .gantt-labels-rows .gantt-label-row {
   position: absolute;
@@ -636,6 +708,8 @@ a.tab {
 .color-swatch--group-parent { background: #3fb950; border: 2px solid rgba(255,255,255,0.5); }
 .color-swatch--group-child { background: rgba(130, 160, 200, 0.55); border-left: 3px solid rgba(100, 140, 200, 0.8); }
 .color-swatch--past-deadline { background: repeating-linear-gradient(-45deg, #da3633, #da3633 2px, #b62324 2px, #b62324 4px); border: 1px dashed rgba(255,255,255,0.5); }
+.color-swatch--dep-dev { background: none; height: 3px; border-radius: 0; border-top: 2.5px solid rgba(200,160,60,0.85); position: relative; top: 2px; }
+.color-swatch--dep-other { background: none; height: 3px; border-radius: 0; border-top: 2px dashed rgba(140,140,140,0.7); position: relative; top: 2px; }
 
 .capacity-note {
   margin-top: 0.5rem;
@@ -677,6 +751,29 @@ a.tab {
   margin-bottom: 0.35rem;
 }
 
+.recommendations-content {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.recommendations-content .rec-block {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.recommendations-content .rec-block strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text);
+}
+
+.recommendations-content ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .gantt-bar-balance {
   font-weight: 700;
   opacity: 0.85;
@@ -689,48 +786,22 @@ a.tab {
   margin-right: 3px;
 }
 
-/* No capacity: 0 headcount available — no outstanding resources; blue, placed at right */
-.gantt-bar--no-capacity {
-  background: rgba(31, 111, 235, 0.55) !important;
-  border: 1px solid #1f6feb;
+
+
+/* No duration data: Total Months Needed for 1 person by Dev (Everything from start to finish) / Dev Resources missing — greyed out */
+.gantt-bar--no-duration-data {
+  background: rgba(110, 118, 129, 0.4) !important;
+  border: 1px dashed rgba(110, 118, 129, 0.7);
+  opacity: 0.75;
 }
 
-.gantt-bar--no-capacity:hover {
-  background: rgba(56, 139, 253, 0.7) !important;
-  border-color: #388bfd;
-}
-
-/* Main group bar: single green bar for a resource group (e.g. IAMv2) spanning full group range */
-.gantt-bar--main-group {
-  background: #238636 !important;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  font-weight: 600;
-}
-
-.gantt-bar--main-group:hover {
-  background: #2ea043 !important;
-}
-
-/* Grouping bar: section header for a bucket when not using main-group bar */
-.gantt-bar--grouping {
-  background: rgba(110, 118, 129, 0.45) !important;
-  border: 1px solid rgba(110, 118, 129, 0.6);
-  font-weight: 600;
-}
-
-.gantt-bar--grouping:hover {
+.gantt-bar--no-duration-data:hover {
   background: rgba(110, 118, 129, 0.55) !important;
+  border-color: rgba(110, 118, 129, 0.9);
+  opacity: 0.9;
 }
 
-/* Bucket parent bar: grey when shown under a grouping bar (e.g. 59 - IAMv2 - User onboarding...) */
-.gantt-bar--bucket-parent {
-  background: rgba(110, 118, 129, 0.35) !important;
-  border: 1px solid rgba(110, 118, 129, 0.5);
-}
 
-.gantt-bar--bucket-parent:hover {
-  background: rgba(110, 118, 129, 0.5) !important;
-}
 
 /* Resource group parent: subtle border to indicate it contains sub-projects */
 .gantt-bar--group-parent {
@@ -747,73 +818,137 @@ a.tab {
   font-size: 0.7rem;
 }
 
-/* Spare capacity chart */
+/* --- Type 2a Pool container --- */
+.gantt-bar--pool-container {
+  background: linear-gradient(135deg, rgba(50, 80, 120, 0.65), rgba(40, 65, 100, 0.55)) !important;
+  border: 2px solid rgba(88, 166, 255, 0.5);
+  border-radius: 5px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  overflow: visible;
+}
+
+/* Budget marker: vertical line inside the container showing where budget ends */
+.gantt-pool-budget-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 180, 50, 0.85);
+  z-index: 2;
+  pointer-events: auto;
+  cursor: help;
+}
+.gantt-pool-budget-marker::after {
+  content: '▼';
+  position: absolute;
+  top: -10px;
+  left: -4px;
+  font-size: 8px;
+  color: rgba(255, 180, 50, 0.9);
+}
+
+/* Pool sub-project bar: compact bar indented inside the container */
+.gantt-bar--pool-sub {
+  background: rgba(100, 160, 220, 0.6) !important;
+  border-left: 2px solid rgba(88, 166, 255, 0.75);
+  border-radius: 3px;
+  opacity: 0.9;
+  margin-left: 14px;
+  font-size: 0.65rem;
+}
+
+/* Dependency hover highlight: glow on connected bars */
+.gantt-bar--dep-highlight {
+  outline: 2px solid rgba(255, 200, 60, 0.85);
+  outline-offset: 1px;
+  box-shadow: 0 0 10px rgba(255, 200, 60, 0.5), 0 0 20px rgba(255, 200, 60, 0.2);
+  z-index: 3 !important;
+  filter: brightness(1.2);
+}
+
+.gantt-dep-line--highlight {
+  stroke: rgba(255, 200, 60, 0.95) !important;
+  stroke-width: 2.5 !important;
+  stroke-dasharray: none !important;
+  filter: drop-shadow(0 0 3px rgba(255, 200, 60, 0.6));
+}
+
+/* Spare capacity chart — SVG area chart with utilization color bands */
 .spare-capacity-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 100px;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
   margin-bottom: 0.75rem;
+}
+
+.spare-chart-wrapper {
+  position: relative;
+  width: 100%;
   overflow-x: auto;
 }
 
-.spare-capacity-inner {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 100%;
-  min-width: min-content;
-}
-
-.spare-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1 1 0;
-  min-width: 28px;
-  height: 100%;
-  justify-content: flex-end;
-  cursor: default;
-}
-
-.spare-bar {
+.spare-svg {
+  display: block;
   width: 100%;
-  border-radius: 2px 2px 0 0;
-  min-height: 0;
-  transition: height 0.2s ease;
+  height: 160px;
+  border-bottom: 1px solid var(--border);
 }
 
-.spare-bar--used {
-  background: #d29922;
-  opacity: 0.75;
+.spare-col-rect {
+  transition: fill 0.15s ease;
 }
 
-.spare-bar--spare {
-  background: #3fb950;
-  opacity: 0.6;
-  border-radius: 2px 2px 0 0;
-}
-
-.spare-label {
-  font-size: 0.55rem;
-  color: var(--muted);
-  margin-top: 3px;
+/* Floating tooltip on hover */
+.spare-tooltip {
+  display: none;
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--fg);
   white-space: nowrap;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  max-height: 40px;
-  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.spare-col:hover .spare-bar--spare {
-  opacity: 1;
+.spare-tooltip-util {
+  font-weight: 600;
 }
 
-.spare-col:hover .spare-bar--used {
-  opacity: 1;
+/* Actionable insights list */
+.spare-insight {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
+
+.spare-insight-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.spare-insight--red { color: #f0a0a0; }
+.spare-insight--red .spare-insight-dot { background: #f85149; }
+
+.spare-insight--amber { color: #e0c080; }
+.spare-insight--amber .spare-insight-dot { background: #d29922; }
+
+.spare-insight--green { color: #a0d0a0; }
+.spare-insight--green .spare-insight-dot { background: #3fb950; }
+
+.spare-insight--blue { color: #90b8e0; }
+.spare-insight--blue .spare-insight-dot { background: #58a6ff; }
 
 .loading, .error {
   padding: 2rem;
@@ -825,7 +960,7 @@ a.tab {
   color: #f85149;
 }
 
-/* Dependency graph tab – layered node-link diagram */
+/* Dependency graph – compact DAG with orthogonal routing */
 .dependency-graph-section {
   padding: 1rem 0;
 }
@@ -843,143 +978,127 @@ a.tab {
   max-width: 56rem;
 }
 
-.dependency-graph-legend {
+.depgraph-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
+  gap: 0.75rem 1.5rem;
   margin-bottom: 1rem;
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
-.dependency-graph-legend-item {
+.depgraph-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 6px;
 }
 
-.dependency-graph-legend-arrow {
+.depgraph-legend-item--muted {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.depgraph-legend-line {
   display: inline-block;
-  width: 16px;
-  height: 8px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath fill='%238b949e' d='M0 4h12l-3 4 3-4-3-4z'/%3E%3C/svg%3E") no-repeat center;
-  background-size: contain;
+  width: 24px;
+  height: 3px;
+  border-radius: 1px;
 }
 
-.dependency-graph-legend-arrow--blocker {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 8'%3E%3Cpath fill='%23d29922' d='M0 4h12l-3 4 3-4-3-4z'/%3E%3C/svg%3E");
+.depgraph-legend-line--critical {
+  background: rgba(88,166,255,0.7);
 }
 
-.dependency-graph-legend-item--blocker {
-  color: #d29922;
+.depgraph-legend-line--blocker {
+  background: rgba(210,153,34,0.65);
 }
 
-.dependency-graph-legend-node {
-  display: inline-block;
-  width: 14px;
-  height: 10px;
-  border-radius: 3px;
-  margin-right: 6px;
-  vertical-align: middle;
-  background: var(--surface);
+.depgraph-legend-line--plain {
+  background: rgba(139,148,158,0.4);
+  height: 1px;
+  border-top: 1px dashed rgba(139,148,158,0.5);
 }
 
-.dependency-graph-legend-node--resource-group {
-  border: 2px solid var(--accent);
-}
-
-.dependency-graph-legend-node--multi-line {
-  border: 1.5px dashed #8b7355;
-}
-
+/* Container */
 .dependency-graph-container {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
   overflow: auto;
-  min-height: 240px;
+  min-height: 200px;
 }
 
-.dependency-graph-svg {
+/* SVG */
+.depgraph-svg {
   display: block;
 }
 
-.dependency-node-rect {
-  fill: #212d3f;
-  stroke: var(--border);
-  stroke-width: 1.5;
-  transition: fill 0.15s, stroke 0.15s;
+.depgraph-empty {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0;
+  padding: 2rem;
 }
 
-.dependency-node:hover .dependency-node-rect {
+/* Nodes */
+.depgraph-node-rect {
+  fill: #1c2636;
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s, opacity 0.2s;
+}
+
+.depgraph-node:hover .depgraph-node-rect {
   fill: var(--bar);
   stroke: var(--accent);
 }
 
-.dependency-node-sl {
+.depgraph-node--critical .depgraph-node-rect {
+  stroke: rgba(88,166,255,0.5);
+  stroke-width: 2;
+}
+
+.depgraph-node--critical:hover .depgraph-node-rect {
+  stroke: rgba(88,166,255,0.8);
+}
+
+.depgraph-node-id {
   fill: var(--accent);
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   font-family: 'Segoe UI', system-ui, sans-serif;
   pointer-events: none;
 }
 
-.dependency-node-summary {
+.depgraph-node-summary {
   fill: var(--text);
-  font-size: 12px;
+  font-size: 11px;
   font-family: 'Segoe UI', system-ui, sans-serif;
   pointer-events: none;
-}
-
-/* Resource group: combined effort (one shared pool) – solid accent border */
-.dependency-node--resource-group .dependency-node-rect {
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-
-.dependency-node--resource-group:hover .dependency-node-rect {
-  stroke: var(--accent);
-}
-
-/* Multiple line items: effort per row (e.g. IAMv2) – dashed border */
-.dependency-node--multi-line .dependency-node-rect {
-  stroke: #8b7355;
-  stroke-width: 1.5;
-  stroke-dasharray: 6 4;
-}
-
-.dependency-node--multi-line:hover .dependency-node-rect {
-  stroke: #a08060;
-}
-
-/* Shared pool line items (children of resource-group parent) */
-.dependency-node--pool-child .dependency-node-rect {
-  stroke: var(--accent);
-  stroke-width: 1.5;
-  stroke-dasharray: 4 3;
-  fill: rgba(130, 160, 200, 0.24);
-}
-
-.dependency-node--pool-child:hover .dependency-node-rect {
-  fill: rgba(130, 160, 200, 0.36);
-  stroke: var(--accent);
-}
-
-.dependency-edge {
-  stroke: var(--muted);
   opacity: 0.85;
 }
 
-.dependency-edge--blocker {
-  stroke: #d29922;
-  stroke-width: 2;
-  opacity: 1;
+/* Edges */
+.depgraph-edge {
+  transition: stroke-opacity 0.2s, stroke-width 0.2s;
 }
 
-.dependency-graph-empty {
-  color: var(--muted);
-  font-size: 0.875rem;
-  margin: 0;
-  padding: 2rem;
+/* Hover: dim non-chain, highlight chain */
+.depgraph-node--dimmed {
+  opacity: 0.15;
+}
+
+.depgraph-node--highlighted .depgraph-node-rect {
+  fill: #1e3050;
+  stroke: var(--accent);
+}
+
+.depgraph-edge--dimmed {
+  stroke-opacity: 0.07 !important;
+}
+
+.depgraph-edge--highlighted {
+  stroke-opacity: 1 !important;
+  stroke-width: 2.5;
 }

@@ -1,13 +1,15 @@
 /**
- * Upload page: CSV/JSON file input, submit to persist, verification table, export JSON.
+ * Upload page: CSV, XLSX, or JSON file input; submit to persist; verification table; export JSON.
  * @module upload
  */
 
 import { getEl, escapeHtml, formatNum } from './utils.js';
 import { logger } from './logger.js';
-import { getProjects, setProjects } from './state.js';
-import { csvToProjects, detectResourceGroups } from './csv-parser.js';
+import { getProjects, setProjects, setScheduleData } from './state.js';
+import { csvToProjects, rowsToProjects, detectResourceGroups } from './csv-parser.js';
+import { parseXlsxToRows } from './xlsx-parser.js';
 import { orderByDependencyAndSize, getDependentsCounts, getRankLabel } from './ranking.js';
+import { prepareScheduleData } from './prepare-schedule.js';
 
 /** Pending projects after file selection, before Submit. */
 let pendingUploadProjects = null;
@@ -23,6 +25,7 @@ function renderUploadTable(projectList) {
   const ordered = orderByDependencyAndSize(projectList || []);
   const counts = getDependentsCounts(projectList || []);
   const devBlockerSet = (p) => new Set(p.dependencyDevBlockers || []);
+  const relBlockerSet = (p) => new Set(p.dependencyRelBlockers || []);
 
   container.innerHTML = '';
   const table = document.createElement('table');
@@ -55,8 +58,9 @@ function renderUploadTable(projectList) {
     const slNo = p.rowNumber != null ? p.rowNumber : '—';
     const totalPersonMonthsVal = (p.totalPersonMonths !== undefined && p.totalPersonMonths !== '') ? String(p.totalPersonMonths).trim() : '—';
     const internalDeps = (p.dependencyRowNumbers || []).filter(r => r !== p.rowNumber);
-    const blockers = devBlockerSet(p);
-    const depParts = internalDeps.map(r => blockers.has(r) ? `${r} (Dev-blocker)` : `${r}`);
+    const devBlockers = devBlockerSet(p);
+    const relBlockers = relBlockerSet(p);
+    const depParts = internalDeps.map(r => devBlockers.has(r) ? `${r} (Dev-blocker)` : relBlockers.has(r) ? `${r} (Rel-blocker)` : `${r}`);
     const depText = depParts.length === 0 ? '—' : depParts.join(', ');
     const rankText = getRankLabel(p, counts);
     const statusText = (p.status || '').trim() || '—';
@@ -95,7 +99,7 @@ function runUploadSubmit() {
 
   if (!listToShow || listToShow.length === 0) {
     if (uploadStatus) {
-      uploadStatus.textContent = 'No project data. Upload a CSV or JSON above, or add data/projects.json and reload.';
+      uploadStatus.textContent = 'No project data. Upload a CSV, XLSX, or JSON above, or add data/projects.json and reload.';
       uploadStatus.className = 'upload-status error';
     }
     return;
@@ -104,16 +108,20 @@ function runUploadSubmit() {
   try {
     if (listToShow === pendingUploadProjects) {
       setProjects(pendingUploadProjects);
-      logger.info('upload.submit: persisted', pendingUploadProjects.length, 'projects');
+      logger.info('upload.submit: persisted', pendingUploadProjects.length, 'raw projects');
     }
 
-    renderUploadTable(listToShow);
+    const { projects: scheduleProjects, dropped, total } = prepareScheduleData(listToShow);
+    setScheduleData(scheduleProjects);
+    logger.info('upload.submit: prepared', scheduleProjects.length, 'committed projects for schedule (dropped', dropped, 'of', total, ')');
+
+    renderUploadTable(scheduleProjects);
     if (uploadTableWrap) {
       uploadTableWrap.style.display = 'block';
       uploadTableWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     if (uploadStatus) {
-      uploadStatus.textContent = `${listToShow.length} projects loaded. Verify the table below, then go to the Schedule tab when ready.`;
+      uploadStatus.textContent = `${total} rows imported → ${scheduleProjects.length} Committed projects ready for schedule (${dropped} non-committed rows excluded). Verify the table below, then go to the Schedule tab.`;
       uploadStatus.className = 'upload-status success';
     }
     showExportRow();
@@ -139,7 +147,7 @@ function updateSubmitButtonState() {
   const hasSaved = getProjects().length > 0;
   const canSubmit = hasPending || hasSaved;
   /* Keep button always clickable; handler shows message if nothing to submit */
-  btn.title = canSubmit ? 'Persist and show project table' : 'Select a CSV or JSON file above first';
+  btn.title = canSubmit ? 'Persist and show project table' : 'Select a CSV, XLSX, or JSON file above first';
 }
 
 function showUploadSubmitRow() {
@@ -147,7 +155,7 @@ function showUploadSubmitRow() {
 }
 
 /**
- * Handle selected file: parse CSV or JSON, detect resource groups, show Submit row.
+ * Handle selected file: parse CSV, XLSX, or JSON; detect resource groups; show Submit row.
  * @param {File} file
  */
 async function handleFile(file) {
@@ -157,33 +165,49 @@ async function handleFile(file) {
 
   if (uploadTableWrap) uploadTableWrap.style.display = 'none';
 
-  try {
-    const text = await file.text();
-    if (!text || !text.trim()) {
-      if (uploadStatus) {
-        uploadStatus.textContent = 'File is empty.';
-        uploadStatus.className = 'upload-status error';
-      }
-      if (fileInput) fileInput.value = '';
-      return;
-    }
+  const name = (file.name || '').toLowerCase();
+  const isJson = name.endsWith('.json');
+  const isXlsx = name.endsWith('.xlsx');
 
-    const isJson = file.name.toLowerCase().endsWith('.json');
+  try {
     let next;
 
     if (isJson) {
+      const text = await file.text();
+      if (!text || !text.trim()) {
+        if (uploadStatus) { uploadStatus.textContent = 'File is empty.'; uploadStatus.className = 'upload-status error'; }
+        if (fileInput) fileInput.value = '';
+        return;
+      }
       const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) throw new Error('JSON must be an array of projects');
       detectResourceGroups(parsed);
       next = parsed;
       logger.debug('upload.handleFile: parsed JSON', next.length, 'projects');
+    } else if (isXlsx) {
+      const arrayBuffer = await file.arrayBuffer();
+      const { rows, error: xlsxError } = await parseXlsxToRows(arrayBuffer);
+      if (xlsxError) {
+        if (uploadStatus) { uploadStatus.textContent = xlsxError; uploadStatus.className = 'upload-status error'; }
+        return;
+      }
+      const out = rowsToProjects(rows);
+      if (out.error) {
+        if (uploadStatus) { uploadStatus.textContent = out.error; uploadStatus.className = 'upload-status error'; }
+        return;
+      }
+      next = out.projects;
+      logger.debug('upload.handleFile: parsed XLSX', next.length, 'projects');
     } else {
+      const text = await file.text();
+      if (!text || !text.trim()) {
+        if (uploadStatus) { uploadStatus.textContent = 'File is empty.'; uploadStatus.className = 'upload-status error'; }
+        if (fileInput) fileInput.value = '';
+        return;
+      }
       const out = csvToProjects(text);
       if (out.error) {
-        if (uploadStatus) {
-          uploadStatus.textContent = out.error;
-          uploadStatus.className = 'upload-status error';
-        }
+        if (uploadStatus) { uploadStatus.textContent = out.error; uploadStatus.className = 'upload-status error'; }
         return;
       }
       next = out.projects;
@@ -223,7 +247,7 @@ function bindControls() {
     const onFileChosen = (e) => {
       const file = e.target.files?.[0];
       if (!file) {
-        uploadStatus.textContent = 'No file chosen. Select a .csv or .json file above.';
+        uploadStatus.textContent = 'No file chosen. Select a .csv, .xlsx, or .json file above.';
         return;
       }
       uploadStatus.textContent = 'Loading…';
@@ -242,7 +266,7 @@ function bindControls() {
       const hasSaved = getProjects().length > 0;
       if (!hasPending && !hasSaved) {
         if (uploadStatus) {
-          uploadStatus.textContent = 'Select a CSV or JSON file above first.';
+          uploadStatus.textContent = 'Select a CSV, XLSX, or JSON file above first.';
           uploadStatus.className = 'upload-status error';
         }
         return;

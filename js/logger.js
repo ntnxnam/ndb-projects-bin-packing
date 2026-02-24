@@ -22,5 +22,3 @@ export const logger = {
   warn: (...args) => console.warn('[ndb]', ...args),
   error: (...args) => console.error('[ndb]', ...args),
 };
-
-export default logger;

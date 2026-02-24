@@ -12,7 +12,7 @@
     <h1>NDB 3.0 – Project bin packing</h1>
 
     <nav class="tabs" role="tablist">
-      <a href="upload.html" class="tab" role="tab">1. Refresh CSV</a>
+      <a href="upload.html" class="tab" role="tab">1. Refresh data</a>
       <a href="index.html" class="tab" role="tab">2. Schedule</a>
       <a href="dependencies.html" class="tab active" role="tab" aria-current="page">3. Dependencies</a>
       <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
@@ -21,25 +21,7 @@
     <div class="tab-panel" role="main">
       <section class="dependency-graph-section" aria-label="Dependency graph">
         <h2>Dependency graph</h2>
-        <p class="dependency-graph-desc">Who blocks whom: arrows point from a dependency to the project that cannot complete until it's checked in. Same filters as Schedule.</p>
-        <div class="controls bottom-up-controls">
-          <div class="control-group">
-            <label for="depCommitment">3.0 Commitment Status</label>
-            <select id="depCommitment">
-              <option value="">All</option>
-              <option value="Committed" selected>Committed</option>
-              <option value="Approved">Approved</option>
-            </select>
-          </div>
-          <div class="control-group">
-            <label for="depPriority">Priority</label>
-            <select id="depPriority">
-              <option value="">All</option>
-              <option value="P0" selected>P0</option>
-              <option value="P1">P1</option>
-            </select>
-          </div>
-        </div>
+        <p class="dependency-graph-desc">Projects with dependencies shown as a directed graph. Arrows flow left-to-right from a dependency to the project it blocks. The <strong>critical chain</strong> (longest dependency path) is highlighted in blue. Hover any node to trace its full upstream/downstream chain.</p>
         <div id="dependencyGraph" class="dependency-graph-container"></div>
       </section>
     </div>

@@ -12,7 +12,7 @@
     <h1>NDB 3.0 – Project bin packing</h1>
 
     <nav class="tabs" role="tablist">
-      <a href="upload.html" class="tab" role="tab">1. Refresh CSV</a>
+      <a href="upload.html" class="tab" role="tab">1. Refresh data</a>
       <a href="index.html" class="tab" role="tab">2. Schedule</a>
       <a href="dependencies.html" class="tab" role="tab">3. Dependencies</a>
       <a href="bottom-up.html" class="tab active" role="tab" aria-current="page">4. Bottom up</a>
@@ -23,15 +23,8 @@
         <h2>4. Bottom up – scrutinize your numbers</h2>
         <p class="bottom-up-desc">We <strong>do not</strong> schedule from your CSV as-is. We schedule by <strong>rank</strong> (priority, commitment), <strong>dependency</strong> (dev‑blockers first), and <strong>sizing</strong>. The table below <strong>juxtaposes</strong> that logic-driven schedule with what you claimed in the CSV and <strong>challenges</strong> any mismatch: delayed by deps/capacity, sizing vs effort inconsistency, understaffing. Think like a cynical VP.</p>
         <div class="controls bottom-up-controls">
-          <div class="control-group">
-            <label for="bottomUpCommitment">3.0 Commitment Status</label>
-            <select id="bottomUpCommitment">
-              <option value="">All</option>
-              <option value="Committed" selected>Committed</option>
-              <option value="Approved">Approved</option>
-            </select>
-          </div>
-          <div class="control-group">
+          <!-- Priority filter: hidden until P1 projects are added to committed data -->
+          <div class="control-group" style="display:none">
             <label for="bottomUpPriority">Priority</label>
             <select id="bottomUpPriority">
               <option value="">All</option>
@@ -49,7 +42,7 @@
           <h3 class="upload-table-title">Logic's actual predictions (Gantt)</h3>
           <p class="bottom-up-gantt-desc">Same schedule as in the table above, drawn as a Gantt. This is what the bin-packing and dependency logic actually produced — not what the CSV implied.</p>
           <div class="gantt-wrapper">
-            <div id="bottomUpGanttLabels" class="gantt-labels" aria-label="Column B (group), Column C (project)"></div>
+            <div id="bottomUpGanttLabels" class="gantt-labels" aria-label="Sl No, Column B (group), Column C (project), Available (pool)"></div>
             <div class="gantt-chart-scroll">
               <div id="bottomUpGanttAxis" class="gantt-axis"></div>
               <div id="bottomUpGanttChart"></div>

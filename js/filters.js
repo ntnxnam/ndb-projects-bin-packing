@@ -7,20 +7,6 @@ import { norm } from './utils.js';
 import { logger } from './logger.js';
 
 /**
- * Filter projects by 3.0 Commitment Status (exact match, case-insensitive).
- * @param {Array<object>} projects
- * @param {string} commitment - e.g. "Committed", "Approved", or "" for all.
- * @returns {Array<object>}
- */
-export function filterByCommitment(projects, commitment) {
-  if (!commitment) return projects;
-  const c = norm(commitment);
-  const out = projects.filter(p => norm(p.commitment) === c);
-  logger.debug('filters.filterByCommitment:', commitment, '->', out.length, 'of', projects.length);
-  return out;
-}
-
-/**
  * Filter projects by Priority (exact match, case-insensitive; default "P0").
  * @param {Array<object>} projects
  * @param {string} priority - e.g. "P0", "P1", or "" for all.
@@ -36,7 +22,8 @@ export function filterByPriority(projects, priority) {
 
 /**
  * Tag each project with _tier for priority-aware scheduling.
- * Tier 1 = P0 or Committed (front-loaded); Tier 2 = rest.
+ * Tier 1 = P0, Tier 2 = P1, Tier 3 = everything else.
+ * All projects are Committed (filtered upstream by prepare-schedule).
  * Resource-group children inherit their parent's tier. Mutates projectList.
  * @param {Array<object>} projectList
  */
@@ -44,14 +31,14 @@ export function tagPriorityTiers(projectList) {
   const parentTierByRow = new Map();
   for (const p of projectList) {
     if (p.isResourceGroupChild) continue;
-    const isP0 = norm(p.priority || 'P0') === 'p0';
-    const isCommitted = norm(p.commitment || '').includes('committed');
-    p._tier = (isP0 || isCommitted) ? 1 : 2;
-    parentTierByRow.set(p.rowNumber, p._tier);
+    const pri = norm(p.priority || 'P0');
+    const tier = pri === 'p0' ? 1 : pri === 'p1' ? 2 : 3;
+    p._tier = tier;
+    parentTierByRow.set(p.rowNumber, tier);
   }
   for (const p of projectList) {
     if (!p.isResourceGroupChild) continue;
-    p._tier = parentTierByRow.get(p.resourceGroupParentRow) ?? 2;
+    p._tier = parentTierByRow.get(p.resourceGroupParentRow) ?? 3;
   }
   logger.debug('filters.tagPriorityTiers: applied to', projectList.length, 'projects');
 }

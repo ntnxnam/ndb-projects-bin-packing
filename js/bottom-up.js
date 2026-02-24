@@ -10,14 +10,12 @@ import {
   DEFAULT_START,
   DEFAULT_NUM_FTES,
   DEFAULT_CAPACITY_PCT,
-  UPLOAD_STORAGE_KEY,
 } from './config.js';
-import { getProjects, getFilters, setFilters } from './state.js';
-import { filterByCommitment, filterByPriority, tagPriorityTiers } from './filters.js';
+import { getScheduleData, getFilters, setFilters } from './state.js';
+import { filterByPriority, tagPriorityTiers } from './filters.js';
 import { orderByDependencyAndSize, packWithCapacity, getScheduleEnd } from './bin-packing.js';
 import { renderGantt, renderTimelineAxis } from './gantt.js';
-import { totalResources } from './sizing.js';
-import { SIZING_MONTHS } from './sizing.js';
+import { totalResources, SIZING_MONTHS, effectiveDurationMonths } from './sizing.js';
 import { detectResourceGroups } from './resource-groups.js';
 
 /**
@@ -25,19 +23,7 @@ import { detectResourceGroups } from './resource-groups.js';
  * @returns {Array<object>}
  */
 function getProjectList() {
-  let list = getProjects();
-  if (list.length > 0) return list;
-  try {
-    const raw = localStorage.getItem(UPLOAD_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        detectResourceGroups(parsed);
-        return parsed;
-      }
-    }
-  } catch (_) {}
-  return [];
+  return getScheduleData();
 }
 
 function parseDate(str) {
@@ -47,10 +33,12 @@ function parseDate(str) {
 
 /**
  * Render bottom-up table: CSV vs schedule with challenge column.
+ * Implied duration uses productivity (capacity %): effort ÷ (people × capacity%).
  * @param {Array<object>} projectList
  * @param {Array<object>} schedule - From packWithCapacity.
+ * @param {number} [capacityPct] - Capacity per FTE (0–100). Default from config.
  */
-function renderBottomUpTable(projectList, schedule) {
+function renderBottomUpTable(projectList, schedule, capacityPct = DEFAULT_CAPACITY_PCT) {
   const container = getEl('bottomUpTableContainer');
   if (!container) return;
 
@@ -63,6 +51,7 @@ function renderBottomUpTable(projectList, schedule) {
     }
   }
 
+  const capLabel = capacityPct > 0 && capacityPct <= 100 ? ` at ${capacityPct}%` : '';
   container.innerHTML = '';
   const table = document.createElement('table');
   table.className = 'verify-table bottom-up-table';
@@ -75,7 +64,7 @@ function renderBottomUpTable(projectList, schedule) {
         <th scope="col">Summary</th>
         <th scope="col">Total Months (1p)</th>
         <th scope="col">Dev (people)</th>
-        <th scope="col">CSV implied (effort÷people)</th>
+        <th scope="col">Implied duration (effort÷people÷productivity)${capLabel}</th>
         <th scope="col">Blocked by</th>
         <th scope="col">Scheduled start</th>
         <th scope="col">Scheduled end</th>
@@ -93,7 +82,7 @@ function renderBottomUpTable(projectList, schedule) {
       : (p.totalPersonMonths && String(p.totalPersonMonths).trim()) ? parseFloat(String(p.totalPersonMonths).replace(/,/g, '')) : null;
     const devR = totalResources(p);
     const realisticDuration = (totalPersonMonthsNum != null && totalPersonMonthsNum > 0 && devR > 0)
-      ? Math.ceil(totalPersonMonthsNum / devR)
+      ? effectiveDurationMonths(p, capacityPct)
       : null;
     const monthsFromSizing = (p.sizingLabel && SIZING_MONTHS[p.sizingLabel] != null) ? SIZING_MONTHS[p.sizingLabel] : null;
     const minPeopleFromSizing = (totalPersonMonthsNum != null && totalPersonMonthsNum > 0 && monthsFromSizing != null && monthsFromSizing > 0)
@@ -101,8 +90,9 @@ function renderBottomUpTable(projectList, schedule) {
       : null;
 
     const depRows = (p.dependencyRowNumbers || []).filter(r => r !== p.rowNumber);
-    const blockers = new Set(p.dependencyDevBlockers || []);
-    const blockedBy = depRows.length === 0 ? '—' : depRows.map(r => blockers.has(r) ? `${r} (dev-blocker)` : String(r)).join(', ');
+    const devBlockers = new Set(p.dependencyDevBlockers || []);
+    const relBlockers = new Set(p.dependencyRelBlockers || []);
+    const blockedBy = depRows.length === 0 ? '—' : depRows.map(r => devBlockers.has(r) ? `${r} (dev-blocker)` : relBlockers.has(r) ? `${r} (rel-blocker)` : String(r)).join(', ');
 
     const entry = scheduleByRow.get(p.rowNumber);
     const scheduledStart = entry ? formatDate(entry.startDate) : '—';
@@ -111,10 +101,10 @@ function renderBottomUpTable(projectList, schedule) {
 
     const challenges = [];
     if (scheduledDuration != null && realisticDuration != null && scheduledDuration > realisticDuration) {
-      challenges.push(`You said ${realisticDuration} mo (effort÷people). Schedule gives ${scheduledDuration} mo — delayed by deps or capacity. Plan for ${scheduledDuration}.`);
+      challenges.push(`Implied ${realisticDuration} mo (effort÷people÷productivity). Schedule gives ${scheduledDuration} mo — delayed by deps or capacity. Plan for ${scheduledDuration}.`);
     }
     if (realisticDuration != null && monthsFromSizing != null && monthsFromSizing > 0 && realisticDuration > monthsFromSizing) {
-      challenges.push(`Effort implies ${realisticDuration} mo; sizing says up to ${monthsFromSizing} mo. Scope grew or sizing wrong.`);
+      challenges.push(`Implied duration ${realisticDuration} mo; sizing says up to ${monthsFromSizing} mo. Scope grew or sizing wrong.`);
     }
     if (scheduledDuration != null && monthsFromSizing != null && monthsFromSizing > 0 && scheduledDuration > monthsFromSizing) {
       challenges.push(`Schedule runs ${scheduledDuration} mo; sizing says up to ${monthsFromSizing} mo. Sizing too optimistic.`);
@@ -168,9 +158,8 @@ function orderScheduleLikeBottomUpTable(schedule, orderedProjects) {
  * @returns {{ commitment: string, priority: string }}
  */
 function getFilterState() {
-  const commitment = (getEl('bottomUpCommitment')?.value || '').trim();
   const priority = (getEl('bottomUpPriority')?.value || '').trim();
-  return { commitment, priority };
+  return { priority };
 }
 
 /**
@@ -178,19 +167,18 @@ function getFilterState() {
  */
 function runRender() {
   const listToUse = getProjectList();
-  const { commitment, priority } = getFilterState();
-  setFilters({ commitment, priority });
+  const { priority } = getFilterState();
+  setFilters({ priority });
 
-  let filtered = filterByCommitment(listToUse, commitment);
-  filtered = filterByPriority(filtered, priority);
+  let filtered = filterByPriority(listToUse, priority);
+  detectResourceGroups(filtered);
   tagPriorityTiers(filtered);
 
-  const capacity = (DEFAULT_NUM_FTES * DEFAULT_CAPACITY_PCT) / 100;
   const startDate = parseDate(DEFAULT_START);
   const farEnd = new Date(startDate);
   farEnd.setFullYear(farEnd.getFullYear() + 5);
 
-  const schedule = packWithCapacity(filtered, startDate, farEnd, capacity, DEFAULT_CAPACITY_PCT);
+  const schedule = packWithCapacity(filtered, startDate, farEnd, DEFAULT_NUM_FTES, DEFAULT_CAPACITY_PCT);
   renderBottomUpTable(filtered, schedule);
 
   /* Logic's actual predictions: same schedule as a Gantt */
@@ -210,7 +198,7 @@ function runRender() {
       filtered.forEach(p => {
         if (p.isResourceGroupChild && p.resourceGroupParentRow != null) childToParent.set(p.rowNumber, p.resourceGroupParentRow);
       });
-      const displaySchedule = orderScheduleByBlockersFirst(schedule, dependentsByProject);
+      const { schedule: displaySchedule, tierBreaks } = orderScheduleByBlockersFirst(schedule, dependentsByProject);
       if (axisEl) renderTimelineAxis(axisEl, timeline, {});
       if (chartEl) renderGantt(chartEl, displaySchedule, timeline, {
         dependentsByProject,
@@ -218,6 +206,7 @@ function runRender() {
         capacity,
         capacityPct: DEFAULT_CAPACITY_PCT,
         labelsContainer: labelsEl || null,
+        tierBreaks,
       });
     }
   }
@@ -226,17 +215,13 @@ function runRender() {
 }
 
 function bindControls() {
-  const commitmentEl = getEl('bottomUpCommitment');
   const priorityEl = getEl('bottomUpPriority');
-  if (commitmentEl) commitmentEl.addEventListener('change', runRender);
   if (priorityEl) priorityEl.addEventListener('change', runRender);
 }
 
 function applyStoredFilters() {
   const f = getFilters();
-  const commitmentEl = getEl('bottomUpCommitment');
   const priorityEl = getEl('bottomUpPriority');
-  if (commitmentEl && f.commitment) commitmentEl.value = f.commitment;
   if (priorityEl && f.priority) priorityEl.value = f.priority;
 }
 

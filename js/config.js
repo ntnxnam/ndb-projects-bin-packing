@@ -16,8 +16,11 @@ export const DEFAULT_NUM_FTES = 85;
 /** Default capacity per FTE in percent (e.g. 60 = 60% productivity). */
 export const DEFAULT_CAPACITY_PCT = 60;
 
-/** localStorage key for persisted project data (uploaded CSV/JSON). */
+/** localStorage key for raw imported project data (all rows from CSV/XLSX/JSON). */
 export const UPLOAD_STORAGE_KEY = 'ndb-projects-upload';
+
+/** localStorage key for schedule-ready data (Committed-only, cleaned, resource-grouped). */
+export const SCHEDULE_STORAGE_KEY = 'ndb-committed-schedule';
 
 /** localStorage key for last-used schedule filters (commitment, priority, etc.). */
 export const FILTERS_STORAGE_KEY = 'ndb-projects-filters';

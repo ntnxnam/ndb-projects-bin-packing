@@ -46,9 +46,10 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   };
 
   function tooltipWhy(deps) {
-    if (!deps || (!deps.devBlockerFor?.length && !deps.plainDepFor?.length)) return '';
+    if (!deps || (!deps.devBlockerFor?.length && !deps.relBlockerFor?.length && !deps.plainDepFor?.length)) return '';
     const parts = [];
     if (deps.devBlockerFor?.length) parts.push(`Dev-blocker for: ${deps.devBlockerFor.join(', ')}`);
+    if (deps.relBlockerFor?.length) parts.push(`Rel-blocker for: ${deps.relBlockerFor.join(', ')}`);
     if (deps.plainDepFor?.length) parts.push(`Plain dependency for: ${deps.plainDepFor.join(', ')}`);
     return parts.length ? '\n' + parts.join('\n') : '';
   }
@@ -58,32 +59,30 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   const track = document.createElement('div');
   track.className = 'gantt-track';
 
-  /* Build remaining-by-entry in display (schedule) order so "available before allocation"
-     matches rank: rank 1 gets full headcount, then we subtract as we go down the list. */
+  /* Remaining headcount: walk display order, subtract each project's people.
+     When a project starts in a later month, add back people from projects that ended before it. */
   const timelineStartMs = timeline.startDate.getTime();
   function toMonthIdx(d) {
     return Math.round((d.getTime() - timelineStartMs) / MONTH_MS);
   }
-  const usageAtMonth = new Map();
   const remainingByEntry = new Map();
-  schedule.forEach(e => {
-    if (e.isResourceGroupChild) remainingByEntry.set(e, null);
-  });
-  const balanceEntries = schedule.filter(e => !e.isResourceGroupChild);
-  /* Outstanding = remaining people (headcount), not calculated capacity. */
-  for (const entry of balanceEntries) {
-    const fte = entry.fte ?? totalResources(entry.project);
-    const startMo = toMonthIdx(entry.startDate);
-    const endMo = toMonthIdx(entry.endDate);
-    const usedPeopleBefore = usageAtMonth.get(startMo) ?? 0;
-    const remaining = headcount > 0 ? Math.max(0, Math.round(headcount - usedPeopleBefore)) : null;
-    remainingByEntry.set(entry, remaining);
-    for (let m = startMo; m < endMo; m++) {
-      usageAtMonth.set(m, (usageAtMonth.get(m) ?? 0) + fte);
+  {
+    const runningUsage = new Map();
+    for (const e of schedule) {
+      if (e.isResourceGroupChild) { remainingByEntry.set(e, null); continue; }
+      const fte = Math.ceil(e.fte ?? totalResources(e.project));
+      const startMo = toMonthIdx(e.startDate);
+      const usedAtStart = runningUsage.get(startMo) ?? 0;
+      const remaining = headcount > 0 ? Math.max(0, headcount - usedAtStart) : null;
+      remainingByEntry.set(e, remaining);
+      const endMo = toMonthIdx(e.endDate);
+      for (let m = startMo; m < endMo; m++) {
+        runningUsage.set(m, (runningUsage.get(m) ?? 0) + fte);
+      }
     }
   }
 
-  /* Pool order: 1-based within each bucket by rowNumber (59=#1, 60=#2, …) so numbering is stable regardless of display order. */
+  /* Pool order: 1-based within each bucket by rowNumber so numbering is stable regardless of display order. */
   const bucketEntries = new Map();
   for (const e of schedule) {
     const bucketKey = e.isResourceGroupChild && e.project?.resourceGroupParentRow != null
@@ -98,140 +97,122 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     entries.forEach((e, i) => { e._poolOrder = i + 1; });
   }
 
-  /* Per-group date range: min start and max end of all entries in each resource group (for main group bar) */
-  const groupRangeByName = new Map();
-  for (const e of schedule) {
-    const name = e.project?.resourceGroupName;
-    if (!name) continue;
-    const startMs = e.startDate.getTime();
-    const endMs = e.endDate.getTime();
-    const existing = groupRangeByName.get(name);
-    if (!existing) {
-      groupRangeByName.set(name, { minStartMs: startMs, maxEndMs: endMs });
-    } else {
-      existing.minStartMs = Math.min(existing.minStartMs, startMs);
-      existing.maxEndMs = Math.max(existing.maxEndMs, endMs);
-    }
-  }
-
   let topOffset = 0;
   const rowGap = 4;
-  const rowData = []; /* { top, height, colB, colC, isGroup } for labels panel */
+  const rowData = []; /* { top, height, colSlNo, colB, colC, colPeople, isGroup } for labels panel */
+  const barGeometry = new Map(); /* rowNumber → { leftPct, rightPct, topPx, heightPx, depRows, devBlockers } */
 
-  const groupBarHeight = Math.max(minH * 0.8, 18);
   const narrowBarHeight = Math.max(minH * 0.65, 10);
-  const drawnBucketSummary = new Set();
+  const tierDividerHeight = 24;
 
+  /* Build a set of schedule indices where tier dividers should appear */
+  const tierBreaks = options.tierBreaks || [];
+  const tierBreakByIndex = new Map();
+  for (const tb of tierBreaks) {
+    tierBreakByIndex.set(tb.index, tb.label);
+  }
+
+  /* Track peer group bar positions for wrapper rendering after all bars are placed */
+  const peerGroupBars = new Map(); /* resourceGroupName → [{ topPx, bottomPx }] */
+
+  let scheduleIdx = 0;
   for (const entry of schedule) {
     const { project, startDate, endDate, rotated, rotatedFteCount, inProgress } = entry;
+    /* Tier divider: insert a section header row before the first entry of each tier */
+    const tierLabel = tierBreakByIndex.get(scheduleIdx);
+    if (tierLabel && !entry.isResourceGroupChild) {
+      const divider = document.createElement('div');
+      divider.className = 'gantt-tier-divider';
+      divider.style.top = `${topOffset}px`;
+      divider.style.height = `${tierDividerHeight}px`;
+      const dividerLabel = document.createElement('span');
+      dividerLabel.className = 'gantt-tier-divider-label';
+      dividerLabel.textContent = tierLabel;
+      divider.appendChild(dividerLabel);
+      track.appendChild(divider);
+      rowData.push({ top: topOffset, height: tierDividerHeight, colSlNo: '', colB: '', colC: tierLabel, colPeople: '', isGroup: false, isTierDivider: true });
+      topOffset += tierDividerHeight + rowGap;
+    }
+    scheduleIdx++;
+
     const isChild = !!entry.isResourceGroupChild;
-    const remaining = remainingByEntry.get(entry) ?? null;
+    const isPoolContainer = !!entry.isPoolContainer;
+    const isPoolSub = !!entry.isPoolSubProject;
     const left = ((startDate.getTime() - rangeStart) / totalMs) * 100;
     const width = ((endDate.getTime() - startDate.getTime()) / totalMs) * 100;
     const effectiveFte = isChild ? 0 : (entry.fte ?? totalResources(project));
     const bucketName = project.resourceGroupName || '';
-    const isBucketParent = !isChild && bucketName && project.resourceGroupChildRows?.length;
-    const inBucket = isChild || isBucketParent;
-    const height = inBucket ? narrowBarHeight : scaleFte(effectiveFte);
+    const isBucketParent = !isChild && !isPoolContainer && bucketName && Array.isArray(project.resourceGroupChildRows) && project.resourceGroupChildRows.length > 0;
+    const isPeer = !isChild && !isBucketParent && !isPoolContainer && bucketName && !project.isResourceGroupChild;
+    const poolSubHeight = Math.max(minH * 0.55, 9);
+    const height = isPoolSub ? poolSubHeight : isChild ? narrowBarHeight : isPoolContainer ? scaleFte(effectiveFte) : scaleFte(effectiveFte);
 
-    /* When first entry of a bucket has a real date range: draw one wide summary bar, then bucket rows below. */
-    if (bucketName && (isBucketParent || isChild)) {
-      const groupRange = groupRangeByName.get(bucketName);
-      const useMainGroupBar = groupRange && (groupRange.maxEndMs - groupRange.minStartMs) > 0;
-      if (useMainGroupBar && !drawnBucketSummary.has(bucketName)) {
-        drawnBucketSummary.add(bucketName);
-        const gLeft = ((groupRange.minStartMs - rangeStart) / totalMs) * 100;
-        const gWidth = ((groupRange.maxEndMs - groupRange.minStartMs) / totalMs) * 100;
-        rowData.push({ top: topOffset, height: groupBarHeight, colB: bucketName, colC: bucketName, isGroup: true });
-        const groupBar = document.createElement('div');
-        groupBar.className = 'gantt-bar gantt-bar--grouping';
-        groupBar.style.left = `${Math.max(0, gLeft)}%`;
-        groupBar.style.width = `${Math.min(100 - gLeft, gWidth)}%`;
-        groupBar.style.height = `${groupBarHeight}px`;
-        groupBar.style.top = `${topOffset}px`;
-        const groupLabel = document.createElement('span');
-        groupLabel.className = 'gantt-bar-label';
-        groupLabel.textContent = bucketName.length > 50 ? bucketName.slice(0, 50).trim() + '…' : bucketName;
-        groupBar.appendChild(groupLabel);
-        track.appendChild(groupBar);
-        topOffset += groupBarHeight + rowGap;
-      }
-    }
-
-    /* Bucket parent without main group bar: draw small group bar (legacy path). */
-    if (isBucketParent) {
-      const groupRange = groupRangeByName.get(bucketName);
-      const useMainGroupBar = groupRange && (groupRange.maxEndMs - groupRange.minStartMs) > 0;
-      if (!useMainGroupBar) {
-        const noCapRight = remaining === 0 && headcount > 0;
-        const gLeft = noCapRight ? Math.max(0, 100 - width) : left;
-        const gWidth = Math.min(noCapRight ? 100 - gLeft : 100 - left, width);
-        const slNoPrefixGrp = project.rowNumber != null ? `${project.rowNumber} - ` : '';
-        const summaryGrp = (project.summary || '').slice(0, 40) + ((project.summary || '').length > 40 ? '…' : '') || '—';
-        rowData.push({ top: topOffset, height: groupBarHeight, colB: bucketName, colC: slNoPrefixGrp + summaryGrp, isGroup: true });
-        const groupBar = document.createElement('div');
-        groupBar.className = 'gantt-bar gantt-bar--grouping' + (rotated ? ' gantt-bar--rotated' : '');
-        groupBar.style.left = `${Math.max(0, gLeft)}%`;
-        groupBar.style.width = `${gWidth}%`;
-        groupBar.style.height = `${groupBarHeight}px`;
-        groupBar.style.top = `${topOffset}px`;
-        const groupLabel = document.createElement('span');
-        groupLabel.className = 'gantt-bar-label';
-        if (remaining != null) {
-          const groupBal = document.createElement('span');
-          groupBal.className = 'gantt-bar-balance';
-          groupBal.textContent = `[${remaining}] `;
-          groupLabel.appendChild(groupBal);
-        }
-        const groupLabelText = bucketName.length > 50 ? bucketName.slice(0, 50).trim() + '…' : bucketName;
-        groupLabel.appendChild(document.createTextNode(groupLabelText));
-        groupBar.appendChild(groupLabel);
-        track.appendChild(groupBar);
-        topOffset += groupBarHeight + rowGap;
-      }
-    }
-
-    const slNoPrefix = project.rowNumber != null ? `${project.rowNumber} - ` : '';
-    const summary = project.summary || '';
+    /* Pool container: display the pool/FEAT name, not the first row's project summary */
+    const slNoPrefix = isPoolContainer ? '' : (project.rowNumber != null ? `${project.rowNumber} - ` : '');
+    const summary = isPoolContainer ? (bucketName || project.feat || '') : (project.summary || '');
     const bucketNameForColB = bucketName || (project.feat && project.feat.trim()) || '—';
+
     const bar = document.createElement('div');
     let barClass = 'gantt-bar';
+    if (entry.missingDurationData) barClass += ' gantt-bar--no-duration-data';
     if (entry.pastDeadline) barClass += ' gantt-bar--past-deadline';
-    if (isChild) barClass += ' gantt-bar--group-child';
+    if (isPoolContainer) barClass += ' gantt-bar--pool-container';
+    else if (isPoolSub) barClass += ' gantt-bar--pool-sub';
+    else if (isChild) barClass += ' gantt-bar--group-child';
     else if (inProgress) barClass += ' gantt-bar--in-progress';
     else if (rotated) barClass += ' gantt-bar--rotated';
     if (project.resourceGroupChildRows?.length && !project.resourceGroupName) barClass += ' gantt-bar--group-parent';
-    if (!isChild && remaining === 0 && headcount > 0) barClass += ' gantt-bar--no-capacity';
     bar.className = barClass;
-    const noCapacityRight = !isChild && remaining === 0 && headcount > 0;
-    const barLeft = noCapacityRight ? Math.max(0, 100 - width) : left;
-    const barWidth = Math.min(noCapacityRight ? 100 - barLeft : 100 - left, width);
-    bar.style.left = `${Math.max(0, barLeft)}%`;
-    bar.style.width = `${barWidth}%`;
+    bar.style.left = `${Math.max(0, left)}%`;
+    bar.style.width = `${Math.min(100 - left, width)}%`;
     bar.style.height = `${height}px`;
     bar.style.top = `${topOffset}px`;
+
+    /* Pool container: add budget marker line if chain exceeds budget */
+    if (isPoolContainer && project._poolBudgetMonths > 0 && project._poolChainMonths > project._poolBudgetMonths) {
+      const budgetFrac = project._poolBudgetMonths / (project._poolChainMonths || 1);
+      const budgetMarker = document.createElement('div');
+      budgetMarker.className = 'gantt-pool-budget-marker';
+      budgetMarker.style.left = `${budgetFrac * 100}%`;
+      budgetMarker.title = `Budget: ${project._poolBudgetMonths} mo — dependency chain extends to ${project._poolChainMonths} mo`;
+      bar.appendChild(budgetMarker);
+    }
     const people = effectiveFte || totalResources(project);
     const deps = project.rowNumber != null ? dependentsByProject?.get(project.rowNumber) : null;
     const whyLine = tooltipWhy(deps);
-    const blockers = new Set(project.dependencyDevBlockers || []);
+    const devBlockers = new Set(project.dependencyDevBlockers || []);
+    const relBlockers = new Set(project.dependencyRelBlockers || []);
     const depRows = (project.dependencyRowNumbers || []).filter(r => r !== project.rowNumber);
     const dependsOnLine = depRows.length
       ? '\nDepends on (cannot complete until checked in): ' + [...new Set(depRows.map(r => resolveDep(r)))].map(resolved => {
-          const isBlocker = depRows.some(d => resolveDep(d) === resolved && blockers.has(d));
-          return isBlocker ? `${resolved} (Dev-blocker)` : `${resolved}`;
+          const origRow = depRows.find(d => resolveDep(d) === resolved);
+          if (origRow != null && devBlockers.has(origRow)) return `${resolved} (Dev-blocker)`;
+          if (origRow != null && relBlockers.has(origRow)) return `${resolved} (Rel-blocker)`;
+          return `${resolved}`;
         }).join(', ')
       : '';
     const rotationNote = rotated ? `\n↻ Rotated: ${rotatedFteCount} people (reused from completed projects)` : '';
     const completedPct = Math.min(100, Math.max(0, project.completedPct ?? 0));
     const inProgressNote = completedPct > 0 ? `\n⏳ ${completedPct}% completed (${100 - completedPct}% remaining of ${project.durationMonths ?? '—'} mo total)` : '';
 
-    const balanceNote = remaining != null ? `\nAvailable before allocation: ${remaining} headcount` : '';
-    const groupNote = isChild
+    const groupNote = isPoolSub
+      ? `\n📦 Sub-project of pool "${bucketName}" (shares ${project.resourceGroupParentRow != null ? `pool's` : ''} people — no additional headcount)`
+      : isChild
       ? `\n📦 Part of ${bucketName ? `bucket "${bucketName}"` : 'resource group'} (shares parent Sl No ${project.resourceGroupParentRow}'s people — no additional headcount)`
       : '';
-    const parentNote = project.resourceGroupChildRows?.length
-      ? `\n📦 Bucket "${bucketName || project.rowNumber}" (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)`
-      : '';
+    let parentNote = '';
+    if (isPoolContainer) {
+      const pool = project._pool;
+      const budgetMo = project._poolBudgetMonths ?? 0;
+      const chainMo = project._poolChainMonths ?? 0;
+      const overrun = chainMo > budgetMo && budgetMo > 0;
+      parentNote = `\n📦 Pool "${bucketName}" — ${pool?.totalResources ?? 0} people, ${pool?.totalPersonMonthsNum ?? '?'} person-months`
+        + (budgetMo > 0 ? `\n   Budget: ${budgetMo} mo` : '')
+        + (chainMo > 0 ? `\n   Dependency chain: ${chainMo} mo` : '')
+        + (overrun ? `\n   ⚠️ Chain exceeds budget by ${chainMo - budgetMo} mo` : '');
+    } else if (project.resourceGroupChildRows?.length) {
+      parentNote = `\n📦 Bucket "${bucketName || project.rowNumber}" (${project.resourceGroupChildRows.length} sub-projects share these ${people.toFixed(1)} people)`;
+    }
     const poolOrder = entry._poolOrder;
     const poolDependsOn = [...new Set(entry.poolDependsOn || [])];
     const poolOrderNote = (isChild || isBucketParent) && poolOrder != null
@@ -240,51 +221,202 @@ export function renderGantt(container, schedule, timeline, options = {}) {
           : `\n📦 Order in pool: ${poolOrder}`)
       : '';
 
-    const deadlineNote = entry.pastDeadline ? `\n⚠️ Extends past target date` : '';
-    bar.title = `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}${balanceNote}${dependsOnLine}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${poolOrderNote}${deadlineNote}`;
-    bar.dataset.fte = effectiveFte.toFixed(1);
-
-    const maxBucketLabelLen = 50;
-    const shortBucketName = bucketName && bucketName.length > maxBucketLabelLen
-      ? bucketName.slice(0, maxBucketLabelLen).trim() + '…' : (bucketName || '');
-    const truncLen = isChild ? 35 : 40;
-    let summaryText = summary.slice(0, truncLen) + (summary.length > truncLen ? '…' : '') || '—';
-    if ((isChild || isBucketParent) && (bucketName || poolOrder != null) && poolOrder != null) {
-      if (poolDependsOn.length > 0) {
-        summaryText = `#${poolOrder} in pool (after #${poolDependsOn.join(', #')}) · ${summaryText}`;
+    let deadlineNote = '';
+    if (entry.pastDeadline && !isChild) {
+      const deadlineDate = options.deadlineDate;
+      const totalPM = project.totalPersonMonthsNum;
+      const remainFrac = (100 - completedPct) / 100;
+      const remainPM = totalPM > 0 ? totalPM * remainFrac : 0;
+      const availMonths = deadlineDate
+        ? Math.max(1, Math.round((deadlineDate.getTime() - startDate.getTime()) / MONTH_MS))
+        : 0;
+      if (remainPM > 0 && availMonths > 0 && pctFactor > 0) {
+        const neededPeople = Math.ceil(remainPM / (availMonths * pctFactor));
+        const currentPeople = Math.ceil(people);
+        const extraPeople = neededPeople - currentPeople;
+        if (extraPeople > 0) {
+          deadlineNote = `\n⚠️ Extends past target date — to finish on time, increase to ${neededPeople} people (+${extraPeople}) or move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+        } else {
+          deadlineNote = `\n⚠️ Extends past target date — move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+        }
       } else {
-        summaryText = `#${poolOrder} in pool · ${summaryText}`;
+        deadlineNote = `\n⚠️ Extends past target date — move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
       }
     }
-    const parentLabelRaw = !isChild && bucketName && !isBucketParent ? `${shortBucketName || bucketName} · ` : '';
-    const hasMainGroupBar = isBucketParent && (() => {
-      const gr = groupRangeByName.get(bucketName);
-      return gr && (gr.maxEndMs - gr.minStartMs) > 0;
-    })();
-    const barLabelText = (hasMainGroupBar || isBucketParent)
-      ? slNoPrefix + summaryText
-      : (parentLabelRaw || slNoPrefix) + summaryText;
-    rowData.push({ top: topOffset, height, colB: bucketNameForColB, colC: barLabelText, isGroup: false });
+    const noDurationNote = entry.missingDurationData ? `\n⚠️ Total Months Needed for 1 person by Dev (Everything from start to finish) / Dev Resources — data missing; bar greyed out` : '';
+    const titleLine = isPoolContainer
+      ? `${bucketName} (pool)\n${people.toFixed(0)} people · ${project._pool?.totalPersonMonthsNum ?? '?'} person-months`
+      : `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}`;
+    bar.title = `${titleLine}${dependsOnLine}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${poolOrderNote}${deadlineNote}${noDurationNote}`;
+    bar.dataset.fte = effectiveFte.toFixed(1);
+    if (!isPoolContainer && project.rowNumber != null) bar.dataset.row = String(project.rowNumber);
+
+    const truncLen = isPoolSub ? 35 : isChild ? 35 : 40;
+    const projectName = summary.slice(0, truncLen) + (summary.length > truncLen ? '…' : '') || '—';
+    const slNoDisplay = isPoolContainer ? '' : (project.rowNumber != null ? String(project.rowNumber) : '—');
+    const remaining = remainingByEntry.get(entry) ?? null;
+    const remainingDisplay = remaining != null ? String(remaining) : '';
+    rowData.push({ top: topOffset, height, colSlNo: slNoDisplay, colB: bucketNameForColB, colC: projectName, colPeople: remainingDisplay, isGroup: isPoolContainer });
 
     const label = document.createElement('span');
     label.className = 'gantt-bar-label';
-    if (!isChild && remaining != null && !isBucketParent) {
-      const balSpan = document.createElement('span');
-      balSpan.className = 'gantt-bar-balance';
-      balSpan.textContent = `[${remaining}] `;
-      label.appendChild(balSpan);
+    if (!isChild && people > 0) {
+      const fteSpan = document.createElement('span');
+      fteSpan.className = 'gantt-bar-balance';
+      fteSpan.textContent = `${Math.round(people)}p · `;
+      label.appendChild(fteSpan);
     }
-    label.appendChild(document.createTextNode(barLabelText));
+    label.appendChild(document.createTextNode(projectName));
     bar.appendChild(label);
 
+    if (project.rowNumber != null) {
+      barGeometry.set(project.rowNumber, {
+        leftPct: Math.max(0, left),
+        rightPct: Math.max(0, left) + Math.min(100 - left, width),
+        topPx: topOffset,
+        heightPx: height,
+        depRows: (project.dependencyRowNumbers || []).filter(r => r !== project.rowNumber),
+        devBlockers: new Set(project.dependencyDevBlockers || []),
+      });
+    }
+
     track.appendChild(bar);
+
+    /* Track peer group bar vertical positions for wrapper */
+    if (isPeer && bucketName) {
+      if (!peerGroupBars.has(bucketName)) peerGroupBars.set(bucketName, []);
+      peerGroupBars.get(bucketName).push({ topPx: topOffset, bottomPx: topOffset + height });
+    }
+
     topOffset += height + rowGap;
   }
+
+  /* --- Peer group wrappers: dotted border around related bars --- */
+  for (const [groupName, positions] of peerGroupBars) {
+    if (positions.length < 2) continue;
+    const minTop = Math.min(...positions.map(p => p.topPx));
+    const maxBottom = Math.max(...positions.map(p => p.bottomPx));
+    const wrapper = document.createElement('div');
+    wrapper.className = 'gantt-peer-wrapper';
+    wrapper.style.top = `${minTop - 3}px`;
+    wrapper.style.height = `${maxBottom - minTop + 6}px`;
+    const truncName = groupName.length > 60 ? groupName.slice(0, 57).trim() + '…' : groupName;
+    const wrapperLabel = document.createElement('span');
+    wrapperLabel.className = 'gantt-peer-wrapper-label';
+    wrapperLabel.textContent = truncName;
+    wrapper.appendChild(wrapperLabel);
+    track.appendChild(wrapper);
+  }
+
+  /* --- Dependency lines: SVG overlay connecting blocker end → dependent start --- */
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'gantt-dep-lines');
+  svg.style.position = 'absolute';
+  svg.style.top = '0';
+  svg.style.left = '0';
+  svg.style.width = '100%';
+  svg.style.height = `${topOffset}px`;
+  svg.style.pointerEvents = 'none';
+  svg.style.overflow = 'visible';
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'dep-arrow');
+  marker.setAttribute('viewBox', '0 0 6 6');
+  marker.setAttribute('refX', '6');
+  marker.setAttribute('refY', '3');
+  marker.setAttribute('markerWidth', '5');
+  marker.setAttribute('markerHeight', '5');
+  marker.setAttribute('orient', 'auto');
+  const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrowPath.setAttribute('d', 'M0,0 L6,3 L0,6 Z');
+  arrowPath.setAttribute('fill', 'rgba(200,160,60,0.7)');
+  marker.appendChild(arrowPath);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  function findBarByRow(rowNum) {
+    return track.querySelector(`.gantt-bar[data-row="${rowNum}"]`);
+  }
+
+  function highlightDep(srcRow, targetRow, lineEl) {
+    const srcBar = findBarByRow(srcRow);
+    const tgtBar = findBarByRow(targetRow);
+    if (srcBar) srcBar.classList.add('gantt-bar--dep-highlight');
+    if (tgtBar) tgtBar.classList.add('gantt-bar--dep-highlight');
+    lineEl.classList.add('gantt-dep-line--highlight');
+  }
+
+  function unhighlightDep(srcRow, targetRow, lineEl) {
+    const srcBar = findBarByRow(srcRow);
+    const tgtBar = findBarByRow(targetRow);
+    if (srcBar) srcBar.classList.remove('gantt-bar--dep-highlight');
+    if (tgtBar) tgtBar.classList.remove('gantt-bar--dep-highlight');
+    lineEl.classList.remove('gantt-dep-line--highlight');
+  }
+
+  for (const [rowNum, geo] of barGeometry) {
+    if (!geo.depRows.length) continue;
+    const targetMidY = geo.topPx + geo.heightPx / 2;
+    const targetLeftPct = geo.leftPct;
+
+    for (const depRow of geo.depRows) {
+      /* If the dep target has its own bar, draw arrow directly to it;
+         only redirect to parent when the target has no bar (old uber model). */
+      const resolved = barGeometry.has(depRow) ? depRow
+        : childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
+      const depGeo = barGeometry.get(resolved);
+      if (!depGeo) continue;
+
+      const srcMidY = depGeo.topPx + depGeo.heightPx / 2;
+      const srcRightPct = depGeo.rightPct;
+
+      const isDevBlocker = geo.devBlockers.has(depRow);
+      const color = isDevBlocker ? 'rgba(200,160,60,0.55)' : 'rgba(140,140,140,0.4)';
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', `${srcRightPct}%`);
+      line.setAttribute('y1', `${srcMidY}`);
+      line.setAttribute('x2', `${targetLeftPct}%`);
+      line.setAttribute('y2', `${targetMidY}`);
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', isDevBlocker ? '1.5' : '1');
+      line.setAttribute('stroke-dasharray', isDevBlocker ? '' : '4,3');
+      if (isDevBlocker) line.setAttribute('marker-end', 'url(#dep-arrow)');
+      line.style.pointerEvents = 'auto';
+      line.style.cursor = 'pointer';
+      line.setAttribute('stroke-linecap', 'round');
+      /* Invisible wider hit area for easier hovering */
+      const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      hitArea.setAttribute('x1', `${srcRightPct}%`);
+      hitArea.setAttribute('y1', `${srcMidY}`);
+      hitArea.setAttribute('x2', `${targetLeftPct}%`);
+      hitArea.setAttribute('y2', `${targetMidY}`);
+      hitArea.setAttribute('stroke', 'transparent');
+      hitArea.setAttribute('stroke-width', '12');
+      hitArea.style.pointerEvents = 'auto';
+      hitArea.style.cursor = 'pointer';
+
+      const srcRow = resolved;
+      const tgtRow = rowNum;
+      const depLabel = isDevBlocker ? 'Dev-blocker' : 'Dependency';
+      const tooltip = `${depLabel}: Row ${srcRow} → Row ${tgtRow}`;
+      hitArea.innerHTML = `<title>${tooltip}</title>`;
+
+      hitArea.addEventListener('mouseenter', () => highlightDep(srcRow, tgtRow, line));
+      hitArea.addEventListener('mouseleave', () => unhighlightDep(srcRow, tgtRow, line));
+
+      svg.appendChild(line);
+      svg.appendChild(hitArea);
+    }
+  }
+
+  track.appendChild(svg);
 
   track.style.height = `${topOffset}px`;
   track.style.minHeight = `${Math.max(topOffset, 200)}px`;
 
-  /* Column B (group/FEAT) and Column C (project) labels */
+  /* Sl No, Column B (group), Column C (project) labels */
   if (labelsContainer) {
     labelsContainer.innerHTML = '';
     if (rowData.length === 0) labelsContainer.style.display = 'none';
@@ -292,7 +424,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
       labelsContainer.style.display = '';
     const header = document.createElement('div');
     header.className = 'gantt-labels-header';
-    header.innerHTML = '<span class="gantt-col-b">Column B (group)</span><span class="gantt-col-c">Column C (project)</span>';
+    header.innerHTML = '<span class="gantt-col-sl">Sl No</span><span class="gantt-col-b">FEAT (group)</span><span class="gantt-col-c">Project</span><span class="gantt-col-available">Remaining</span>';
     labelsContainer.appendChild(header);
     const rowsWrap = document.createElement('div');
     rowsWrap.className = 'gantt-labels-rows';
@@ -300,10 +432,19 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     rowsWrap.style.minHeight = `${Math.max(topOffset, 200)}px`;
     for (const row of rowData) {
       const rowEl = document.createElement('div');
-      rowEl.className = 'gantt-label-row' + (row.isGroup ? ' gantt-label-row--group' : '');
-      rowEl.style.top = `${row.top}px`;
-      rowEl.style.height = `${row.height + rowGap}px`;
-      rowEl.innerHTML = `<span class="gantt-col-b">${escapeHtmlLabel(row.colB)}</span><span class="gantt-col-c">${escapeHtmlLabel(row.colC)}</span>`;
+      if (row.isTierDivider) {
+        rowEl.className = 'gantt-label-row gantt-label-row--tier-divider';
+        rowEl.style.top = `${row.top}px`;
+        rowEl.style.height = `${row.height + rowGap}px`;
+        rowEl.innerHTML = `<span class="gantt-tier-divider-label">${escapeHtmlLabel(row.colC)}</span>`;
+      } else {
+        rowEl.className = 'gantt-label-row' + (row.isGroup ? ' gantt-label-row--group' : '');
+        rowEl.style.top = `${row.top}px`;
+        rowEl.style.height = `${row.height + rowGap}px`;
+        const slNo = row.colSlNo != null ? String(row.colSlNo) : '';
+        const ppl = row.colPeople != null ? String(row.colPeople) : '';
+        rowEl.innerHTML = `<span class="gantt-col-sl">${escapeHtmlLabel(slNo)}</span><span class="gantt-col-b">${escapeHtmlLabel(row.colB)}</span><span class="gantt-col-c">${escapeHtmlLabel(row.colC)}</span><span class="gantt-col-available">${escapeHtmlLabel(ppl)}</span>`;
+      }
       rowsWrap.appendChild(rowEl);
     }
     labelsContainer.appendChild(rowsWrap);

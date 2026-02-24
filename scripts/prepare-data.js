@@ -111,9 +111,12 @@ function main() {
   const iDependencyNumbers = idx('Dependency Numbers (Comma Separated List)');
   const iTotalPersonMonths = idx('Total Months Needed for 1 person by Dev (Everything from start to finish)');
   const iNumberMonthsDev = idx('Number of Months (Dev)');
-  const iCompletedPct = idx('How much of this is Completed in % (do not add %, just put a number)') >= 0
-    ? idx('How much of this is Completed in % (do not add %, just put a number)')
-    : header.findIndex(h => (h || '').trim().toLowerCase().indexOf('completed') !== -1);
+  const iCompletedPctExact = idx('How much of this is Completed in % (do not add %, just put a number)');
+  const iCompletedPctByKeyword = header.findIndex(h => {
+    const t = (h || '').trim().toLowerCase();
+    return t.indexOf('completed') !== -1 || t.indexOf('progress') !== -1;
+  });
+  const iCompletedPct = iCompletedPctExact >= 0 ? iCompletedPctExact : iCompletedPctByKeyword;
   const iCompletedPctCol = iCompletedPct >= 0 ? iCompletedPct : 5;
 
   const iQAResources = header.findIndex(h => {
@@ -121,11 +124,12 @@ function main() {
     return t.indexOf('Num of QA required') !== -1 && t.indexOf('60% productivity') === -1;
   });
 
-  /** Parse dependency list. Only mark as dev-blocker when the number is directly followed by "(dev-blocker)" in the same segment (e.g. "33 (dev-blocker)" yes, "2" no). */
+  /** Parse dependency list. Mark dev-blocker when "(dev-blocker)" in segment, rel-blocker when "(rel-blocker)". */
   function parseDependencyNumbersAndBlockers(raw) {
-    if (!raw || typeof raw !== 'string') return { rowNumbers: [], devBlockers: [] };
+    if (!raw || typeof raw !== 'string') return { rowNumbers: [], devBlockers: [], relBlockers: [] };
     const rowNumbers = [];
     const devBlockers = [];
+    const relBlockers = [];
     const parts = raw.split(/[,;]/);
     for (const part of parts) {
       const trimmed = part.trim();
@@ -134,11 +138,13 @@ function main() {
         const num = parseInt(numMatch[0], 10);
         rowNumbers.push(num);
         if (/\d+\s*\(\s*dev-blocker\s*\)/i.test(trimmed)) devBlockers.push(num);
+        else if (/\d+\s*\(\s*rel-blocker\s*\)/i.test(trimmed)) relBlockers.push(num);
       }
     }
     return {
       rowNumbers: [...new Set(rowNumbers)],
       devBlockers: [...new Set(devBlockers)],
+      relBlockers: [...new Set(relBlockers)],
     };
   }
 
@@ -167,7 +173,7 @@ function main() {
     const rowNumRaw = (row[iFirstCol] || '').trim();
     const rowNumber = rowNumRaw && !Number.isNaN(parseInt(rowNumRaw, 10)) ? parseInt(rowNumRaw, 10) : null;
     const assignedRowNumber = rowNumber != null ? rowNumber : 9000 + projects.length;
-    const { rowNumbers: dependencyRowNumbers, devBlockers: dependencyDevBlockers } = parseDependencyNumbersAndBlockers(row[iDependencyNumbers]);
+    const { rowNumbers: dependencyRowNumbers, devBlockers: dependencyDevBlockers, relBlockers: dependencyRelBlockers } = parseDependencyNumbersAndBlockers(row[iDependencyNumbers]);
 
     const totalPersonMonthsRaw = iTotalPersonMonths >= 0 ? (row[iTotalPersonMonths] || '').trim() : '';
 
@@ -184,6 +190,10 @@ function main() {
       durationMonths = numMonthsDev;
     } else if (!Number.isNaN(totalPersonMonthsNum) && totalPersonMonthsNum > 0 && devResources > 0) {
       durationMonths = Math.ceil(totalPersonMonthsNum / devResources);
+    } else if (!Number.isNaN(totalPersonMonthsNum) && totalPersonMonthsNum > 0) {
+      /* devResources = 0 but Total Months is known (formula gives #DIV/0! in sheet): treat as 1 dev. */
+      durationMonths = Math.ceil(totalPersonMonthsNum);
+      if (devResources === 0) devResources = 1;
     } else if (monthsFromSizing > 0) {
       durationMonths = monthsFromSizing;
     } else {
@@ -212,8 +222,10 @@ function main() {
       qaResources,
       sizingLabel: sizingRaw,
       durationMonths,
+      totalPersonMonthsNum: Number.isNaN(totalPersonMonthsNum) ? null : totalPersonMonthsNum,
       dependencyRowNumbers,
       dependencyDevBlockers: dependencyDevBlockers || [],
+      dependencyRelBlockers: dependencyRelBlockers || [],
     });
   }
 
@@ -301,7 +313,31 @@ function main() {
   const outDir = path.dirname(OUT_PATH);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(OUT_PATH, JSON.stringify(projects, null, 2), 'utf8');
-  console.log('Wrote', projects.length, 'projects to', OUT_PATH);
+  console.log('Wrote', projects.length, 'projects (all rows) to', OUT_PATH);
+
+  /* --- Step 2: Committed-only schedule data --- */
+  function isDependencyOnlyRow(p) {
+    const hasSummary = (p.summary || '').trim().length > 0;
+    const hasFeat = (p.feat || '').trim().length > 0;
+    const hasResources = (p.totalResources || 0) > 0;
+    const hasDuration = (p.durationMonths || 0) > 0;
+    const hasTotalMonths = p.totalPersonMonthsNum != null && p.totalPersonMonthsNum > 0;
+    const hasSizing = (p.sizingLabel || '').trim().length > 0;
+    const hasPriority = (p.priority || '').trim().length > 0;
+    const hasCommitment = (p.commitment || '').trim().length > 0;
+    if (!hasSummary && !hasFeat && !hasResources && !hasDuration && !hasTotalMonths && !hasSizing) return true;
+    if (!hasCommitment && !hasPriority && !hasResources && !hasDuration && !hasTotalMonths && !hasSizing && !hasSummary) return true;
+    return false;
+  }
+
+  const committed = projects.filter(p => {
+    if (isDependencyOnlyRow(p)) return false;
+    return (p.commitment || '').trim().toLowerCase() === 'committed';
+  });
+
+  const SCHEDULE_PATH = path.join(__dirname, '../data/committed-schedule.json');
+  fs.writeFileSync(SCHEDULE_PATH, JSON.stringify(committed, null, 2), 'utf8');
+  console.log('Wrote', committed.length, 'committed projects to', SCHEDULE_PATH, '(filtered from', projects.length, ')');
 }
 
 main();

@@ -20,16 +20,6 @@ export function getEl(id) {
 }
 
 /**
- * Parse an ISO-style date string (YYYY-MM-DD) to a Date at midnight local.
- * @param {string} str - Date string.
- * @returns {Date}
- */
-export function parseDate(str) {
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-/**
  * Format a Date for display (e.g. "Jan 15, 2026").
  * @param {Date | null | undefined} d
  * @returns {string}

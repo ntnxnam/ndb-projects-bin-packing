@@ -4,7 +4,7 @@
  * @module schedule
  */
 
-import { getEl, formatDate, norm } from './utils.js';
+import { getEl, formatDate } from './utils.js';
 import {
   DEFAULT_START,
   DEFAULT_END,
@@ -16,9 +16,12 @@ import {
   CAPACITY_PCT_MAX,
 } from './config.js';
 import { logger } from './logger.js';
-import { getProjects, setProjects, getFilters, setFilters } from './state.js';
-import { filterByCommitment, filterByPriority, tagPriorityTiers } from './filters.js';
+import { getScheduleData, setScheduleData, getProjects, getFilters, setFilters } from './state.js';
+import { filterByPriority, tagPriorityTiers } from './filters.js';
+import { prepareScheduleData } from './prepare-schedule.js';
 import { packWithCapacity, getScheduleEnd, getLongPoles } from './bin-packing.js';
+
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 import { orderByDependencyAndSize, getDependentsByProject, orderScheduleByBlockersFirst } from './ranking.js';
 import { renderGantt, renderTimelineAxis } from './gantt.js';
 import { totalResources } from './sizing.js';
@@ -39,7 +42,7 @@ function parseDate(str) {
 
 /**
  * Read schedule form state and apply config bounds.
- * @returns {{ startDate: Date, endDate: Date, capacity: number, numFTEs: number, capacityPct: number, commitment: string, priority: string }}
+ * @returns {{ startDate: Date, endDate: Date, capacity: number, numFTEs: number, capacityPct: number, priority: string }}
  */
 function getScheduleState() {
   const numFTEsRaw = getEl('numFTEs')?.value?.trim();
@@ -49,7 +52,6 @@ function getScheduleState() {
   const capacity = (numFTEs * capacityPct) / 100;
   const startStr = getEl('startDate')?.value ?? DEFAULT_START;
   const endStr = getEl('endDate')?.value ?? DEFAULT_END;
-  const commitment = (getEl('commitment')?.value || '').trim();
   const priority = (getEl('priority')?.value || '').trim();
   return {
     startDate: parseDate(startStr),
@@ -57,13 +59,13 @@ function getScheduleState() {
     capacity,
     numFTEs,
     capacityPct,
-    commitment,
     priority,
   };
 }
 
 /**
- * Render spare capacity section: month-by-month used vs spare and notable months.
+ * Render spare capacity: SVG area chart with capacity ceiling line,
+ * color-coded utilization columns, hover tooltip, and actionable insights.
  */
 function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, capacityPct, visibleRange) {
   const section = getEl('spareCapacitySection');
@@ -79,81 +81,246 @@ function renderSpareCapacity(schedule, startDate, endDate, capacity, numFTEs, ca
 
   const tsStart = new Date(startDate);
   tsStart.setDate(1);
-  const monthIndex = (d) => (d.getFullYear() - tsStart.getFullYear()) * 12 + (d.getMonth() - tsStart.getMonth());
+  const monthIdx = (d) => (d.getFullYear() - tsStart.getFullYear()) * 12 + (d.getMonth() - tsStart.getMonth());
   const dateFromMonth = (idx) => new Date(tsStart.getFullYear(), tsStart.getMonth() + idx, 1);
 
-  const endMo = endDate ? monthIndex(endDate) : 0;
+  const endMo = endDate ? monthIdx(endDate) : 0;
   const totalMonths = Math.max(endMo + 1, 1);
-  let visibleMonths = totalMonths;
-  if (visibleRange) {
-    const ve = monthIndex(visibleRange.endDate);
-    const vs = monthIndex(visibleRange.startDate);
-    visibleMonths = Math.min(totalMonths, Math.max(1, ve - vs + 1));
-  }
 
   const usage = new Map();
   for (const entry of schedule) {
     if (entry.isResourceGroupChild) continue;
     const fte = entry.fte ?? totalResources(entry.project);
-    const sMo = monthIndex(entry.startDate);
-    const eMo = monthIndex(entry.endDate);
+    const sMo = monthIdx(entry.startDate);
+    const eMo = monthIdx(entry.endDate);
     for (let m = sMo; m < eMo; m++) usage.set(m, (usage.get(m) ?? 0) + fte);
   }
 
   const headcount = numFTEs || Math.round(capacity);
-  const pctFactor = (capacityPct && capacityPct < 100) ? capacityPct / 100 : 1;
   const months = [];
   let totalSpare = 0;
   let peakUsed = 0;
   for (let m = 0; m < totalMonths; m++) {
-    const effectiveUsed = usage.get(m) ?? 0;
-    const usedHC = Math.round(effectiveUsed / pctFactor);
+    const usedHC = Math.ceil(usage.get(m) ?? 0);
     const spareHC = Math.max(0, headcount - usedHC);
     peakUsed = Math.max(peakUsed, usedHC);
     totalSpare += spareHC;
     const d = dateFromMonth(m);
-    months.push({ month: m, date: d, used: usedHC, spare: spareHC, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+    const utilPct = headcount > 0 ? Math.round((usedHC / headcount) * 100) : 0;
+    months.push({ month: m, date: d, used: usedHC, spare: spareHC, utilPct, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
   }
 
-  const avgSpare = totalMonths > 0 ? totalSpare / totalMonths : 0;
-  descEl.textContent = `${headcount} headcount (${capacityPct}% capacity each) · Peak allocated: ${peakUsed} · Avg available: ${Math.round(avgSpare)}/month · Total spare: ${totalSpare} person-months over ${totalMonths} months`;
+  /* --- Actionable summary line --- */
+  const peakMonth = months.reduce((best, m) => m.used > best.used ? m : best, months[0]);
+  const avgUtil = months.length > 0 ? Math.round(months.reduce((s, m) => s + m.utilPct, 0) / months.length) : 0;
+  const firstLowMonth = months.find(m => m.utilPct < 50);
+  const summaryParts = [
+    `${headcount} people at ${capacityPct}% capacity`,
+    `Peak: ${peakUsed} in ${peakMonth.label} (${peakMonth.utilPct}%)`,
+    `Avg utilization: ${avgUtil}%`,
+  ];
+  if (firstLowMonth) summaryParts.push(`>50% spare from ${firstLowMonth.label}`);
+  descEl.textContent = summaryParts.join('  ·  ');
+
+  /* --- SVG area chart --- */
+  const chartH = 130;
+  const labelH = 18;
+  const padTop = 12;
+  const padRight = 4;
+  const svgH = chartH + labelH + padTop;
+  const maxVal = Math.max(headcount, peakUsed, 1);
+  const colW = Math.max(20, 800 / totalMonths);
+  const svgW = colW * totalMonths + padRight;
+  const yScale = (val) => padTop + chartH - (val / maxVal) * chartH;
+  const baselineY = padTop + chartH;
 
   chartEl.innerHTML = '';
-  const inner = document.createElement('div');
-  inner.className = 'spare-capacity-inner';
-  const widthPct = visibleRange && totalMonths > visibleMonths ? (totalMonths / visibleMonths) * 100 : 100;
-  inner.style.width = `${widthPct}%`;
-  const maxVal = headcount;
-  for (const m of months) {
-    const col = document.createElement('div');
-    col.className = 'spare-col';
-    col.style.flex = `0 0 ${100 / totalMonths}%`;
-    const usedPct = Math.min(100, (m.used / maxVal) * 100);
-    const sparePct = Math.min(100 - usedPct, (m.spare / maxVal) * 100);
-    const usedBar = document.createElement('div');
-    usedBar.className = 'spare-bar spare-bar--used';
-    usedBar.style.height = `${usedPct}%`;
-    const spareBar = document.createElement('div');
-    spareBar.className = 'spare-bar spare-bar--spare';
-    spareBar.style.height = `${sparePct}%`;
-    const lbl = document.createElement('div');
-    lbl.className = 'spare-label';
-    lbl.textContent = m.label;
-    col.title = `${m.label}: ${m.used} allocated, ${m.spare} available (of ${headcount})`;
-    col.appendChild(spareBar);
-    col.appendChild(usedBar);
-    col.appendChild(lbl);
-    inner.appendChild(col);
-  }
-  chartEl.appendChild(inner);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'spare-chart-wrapper';
 
-  const threshold = headcount * 0.2;
-  const notable = months.filter(m => m.spare >= threshold);
-  if (notable.length > 0) {
-    listEl.innerHTML = notable.map(m => `<li><strong>${m.label}</strong>: ${m.used} allocated, <strong>${m.spare} available</strong> (of ${headcount})</li>`).join('');
-  } else {
-    listEl.innerHTML = '<li>No months with significant spare capacity (>20% unused).</li>';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.classList.add('spare-svg');
+
+  /* Horizontal grid lines at 25%, 50%, 75% of capacity */
+  for (const frac of [0.25, 0.5, 0.75]) {
+    const gy = yScale(headcount * frac);
+    const gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    gl.setAttribute('x1', 0); gl.setAttribute('y1', gy);
+    gl.setAttribute('x2', svgW); gl.setAttribute('y2', gy);
+    gl.setAttribute('stroke', 'rgba(110,118,129,0.12)');
+    gl.setAttribute('stroke-width', '0.5');
+    svg.appendChild(gl);
   }
+
+  /* Capacity ceiling line */
+  const capY = yScale(headcount);
+  const capLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  capLine.setAttribute('x1', 0); capLine.setAttribute('y1', capY);
+  capLine.setAttribute('x2', svgW); capLine.setAttribute('y2', capY);
+  capLine.setAttribute('stroke', 'rgba(63,185,80,0.5)');
+  capLine.setAttribute('stroke-width', '1.5');
+  capLine.setAttribute('stroke-dasharray', '6,3');
+  svg.appendChild(capLine);
+
+  /* Capacity label */
+  const capLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  capLabel.setAttribute('x', svgW - 6);
+  capLabel.setAttribute('y', capY - 5);
+  capLabel.setAttribute('text-anchor', 'end');
+  capLabel.setAttribute('fill', 'rgba(63,185,80,0.65)');
+  capLabel.setAttribute('font-size', '9');
+  capLabel.textContent = `${headcount} cap`;
+  svg.appendChild(capLabel);
+
+  /* Area fill (gradient from allocated color to transparent at baseline) */
+  const gradId = 'spare-area-grad';
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  grad.setAttribute('id', gradId);
+  grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+  grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop1.setAttribute('offset', '0%'); stop1.setAttribute('stop-color', '#d29922'); stop1.setAttribute('stop-opacity', '0.35');
+  const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stop2.setAttribute('offset', '100%'); stop2.setAttribute('stop-color', '#d29922'); stop2.setAttribute('stop-opacity', '0.03');
+  grad.appendChild(stop1); grad.appendChild(stop2);
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  let areaD = `M 0 ${baselineY}`;
+  for (let i = 0; i < months.length; i++) {
+    const x = i * colW;
+    const y = yScale(months[i].used);
+    areaD += ` L ${x} ${y} L ${x + colW} ${y}`;
+  }
+  areaD += ` L ${months.length * colW} ${baselineY} Z`;
+  const areaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  areaPath.setAttribute('d', areaD);
+  areaPath.setAttribute('fill', `url(#${gradId})`);
+  svg.appendChild(areaPath);
+
+  /* Allocated step-line */
+  let lineD = '';
+  for (let i = 0; i < months.length; i++) {
+    const x = i * colW;
+    const y = yScale(months[i].used);
+    lineD += (i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`) + ` L ${x + colW} ${y}`;
+  }
+  const allocLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  allocLine.setAttribute('d', lineD);
+  allocLine.setAttribute('fill', 'none');
+  allocLine.setAttribute('stroke', '#d29922');
+  allocLine.setAttribute('stroke-width', '2');
+  svg.appendChild(allocLine);
+
+  /* Color-coded column overlays + hover interactivity */
+  const tooltip = document.createElement('div');
+  tooltip.className = 'spare-tooltip';
+
+  const labelInterval = totalMonths > 30 ? 4 : totalMonths > 18 ? 3 : totalMonths > 10 ? 2 : 1;
+
+  for (let i = 0; i < months.length; i++) {
+    const m = months[i];
+    const x = i * colW;
+    const y = yScale(m.used);
+
+    let fillColor;
+    if (m.utilPct > 85) fillColor = 'rgba(248,81,73,0.18)';
+    else if (m.utilPct > 70) fillColor = 'rgba(210,153,34,0.12)';
+    else fillColor = 'rgba(63,185,80,0.06)';
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', colW); rect.setAttribute('height', baselineY - y);
+    rect.setAttribute('fill', fillColor);
+    rect.classList.add('spare-col-rect');
+    svg.appendChild(rect);
+
+    /* Full-height invisible hit area */
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hit.setAttribute('x', x); hit.setAttribute('y', padTop);
+    hit.setAttribute('width', colW); hit.setAttribute('height', chartH + labelH);
+    hit.setAttribute('fill', 'transparent');
+    hit.style.cursor = 'pointer';
+
+    const hoverFill = m.utilPct > 85 ? 'rgba(248,81,73,0.35)' : m.utilPct > 70 ? 'rgba(210,153,34,0.28)' : 'rgba(63,185,80,0.2)';
+
+    hit.addEventListener('mouseenter', () => {
+      rect.setAttribute('fill', hoverFill);
+      tooltip.innerHTML = `<strong>${m.label}</strong><br>${m.used} allocated · ${m.spare} spare<br><span class="spare-tooltip-util" style="color:${m.utilPct > 85 ? '#f85149' : m.utilPct > 70 ? '#d29922' : '#3fb950'}">${m.utilPct}% utilization</span>`;
+      tooltip.style.display = 'block';
+      const pct = ((x + colW / 2) / svgW) * 100;
+      tooltip.style.left = `calc(${pct}%)`;
+    });
+    hit.addEventListener('mouseleave', () => {
+      rect.setAttribute('fill', fillColor);
+      tooltip.style.display = 'none';
+    });
+    svg.appendChild(hit);
+
+    /* X-axis month labels */
+    if (i % labelInterval === 0) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', x + colW / 2);
+      text.setAttribute('y', baselineY + 13);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('fill', 'rgba(200,210,225,0.45)');
+      text.setAttribute('font-size', '8.5');
+      text.textContent = m.label;
+      svg.appendChild(text);
+    }
+
+    /* Utilization % inside high-usage columns */
+    if (m.utilPct >= 70 && (baselineY - y) > 16) {
+      const pctText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      pctText.setAttribute('x', x + colW / 2);
+      pctText.setAttribute('y', y + 13);
+      pctText.setAttribute('text-anchor', 'middle');
+      pctText.setAttribute('fill', m.utilPct > 85 ? 'rgba(248,81,73,0.85)' : 'rgba(210,153,34,0.75)');
+      pctText.setAttribute('font-size', '8.5');
+      pctText.setAttribute('font-weight', '600');
+      pctText.textContent = `${m.utilPct}%`;
+      svg.appendChild(pctText);
+    }
+  }
+
+  wrapper.appendChild(svg);
+  wrapper.appendChild(tooltip);
+  chartEl.appendChild(wrapper);
+
+  /* --- Actionable insights list --- */
+  const insights = [];
+
+  const highMonths = months.filter(m => m.utilPct > 85);
+  if (highMonths.length > 0) {
+    const names = highMonths.map(m => m.label).join(', ');
+    insights.push(`<li class="spare-insight spare-insight--red"><span class="spare-insight-dot"></span>High utilization (&gt;85%): <strong>${names}</strong> — consider deferring work or adding people</li>`);
+  }
+
+  const amberMonths = months.filter(m => m.utilPct > 70 && m.utilPct <= 85);
+  if (amberMonths.length > 0) {
+    const names = amberMonths.map(m => m.label).join(', ');
+    insights.push(`<li class="spare-insight spare-insight--amber"><span class="spare-insight-dot"></span>Moderate utilization (70–85%): <strong>${names}</strong> — limited room for new work</li>`);
+  }
+
+  const lowMonths = months.filter(m => m.utilPct < 50 && m.used > 0);
+  if (lowMonths.length > 0) {
+    const range = lowMonths.length === 1 ? lowMonths[0].label : `${lowMonths[0].label} – ${lowMonths[lowMonths.length - 1].label}`;
+    insights.push(`<li class="spare-insight spare-insight--green"><span class="spare-insight-dot"></span>Capacity available: <strong>${range}</strong> — can absorb new projects or accelerate existing ones</li>`);
+  }
+
+  const rampIdx = months.findIndex((m, i) => i > 0 && m.used < months[i - 1].used && m.utilPct < 60);
+  if (rampIdx > 0) {
+    insights.push(`<li class="spare-insight spare-insight--blue"><span class="spare-insight-dot"></span>People free up from <strong>${months[rampIdx].label}</strong> (${months[rampIdx].spare} available) — plan next-phase work here</li>`);
+  }
+
+  if (insights.length === 0) {
+    insights.push(`<li class="spare-insight">Steady utilization at ~${avgUtil}% across ${totalMonths} months. Total spare: ${totalSpare} person-months.</li>`);
+  }
+
+  listEl.innerHTML = insights.join('');
   section.style.display = 'block';
 }
 
@@ -212,14 +379,99 @@ function renderPastDeadline(schedule, endDate) {
 }
 
 /**
+ * Compute "needed people" and "extra people" for a past-deadline entry (same logic as gantt tooltip).
+ * @returns {{ neededPeople: number, extraPeople: number } | null }
+ */
+function getPastDeadlineRecommendation(entry, deadlineDate, capacityPct) {
+  const project = entry.project;
+  const completedPct = Number(project.completedPct) || 0;
+  const totalPM = project.totalPersonMonthsNum;
+  const remainFrac = (100 - completedPct) / 100;
+  const remainPM = totalPM > 0 ? totalPM * remainFrac : 0;
+  const availMonths = deadlineDate && entry.startDate
+    ? Math.max(1, Math.round((deadlineDate.getTime() - entry.startDate.getTime()) / MONTH_MS))
+    : 0;
+  const pctFactor = (capacityPct || 100) / 100;
+  if (remainPM <= 0 || availMonths <= 0 || pctFactor <= 0) return null;
+  const neededPeople = Math.ceil(remainPM / (availMonths * pctFactor));
+  const currentPeople = Math.ceil(entry.fte ?? totalResources(project));
+  const extraPeople = neededPeople - currentPeople;
+  return { neededPeople, extraPeople };
+}
+
+/**
+ * Render recommendations: fit release (add people to x, y, z) or move release out.
+ */
+function renderRecommendations(schedule, endDate, capacityPct, numFTEs, longPoles, timelineEnd) {
+  const section = getEl('recommendationsSection');
+  const contentEl = getEl('recommendationsContent');
+  if (!section || !contentEl) return;
+
+  const escapeHtml = (s) => {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  };
+
+  const deadlineMs = endDate ? endDate.getTime() : 0;
+  const pastDeadline = schedule.filter(e => !e.isResourceGroupChild && e.endDate.getTime() > deadlineMs);
+
+  const parts = [];
+
+  if (pastDeadline.length > 0) {
+    const addPeople = [];
+    let latestEnd = endDate;
+    for (const entry of pastDeadline) {
+      const rec = getPastDeadlineRecommendation(entry, endDate, capacityPct);
+      const p = entry.project;
+      const summary = (p.summary || '').slice(0, 50) + ((p.summary || '').length > 50 ? '…' : '');
+      const slNo = p.rowNumber != null ? p.rowNumber : '—';
+      if (rec && rec.extraPeople > 0) {
+        addPeople.push({ slNo, summary: escapeHtml(summary), extra: rec.extraPeople, needed: rec.neededPeople });
+      }
+      if (entry.endDate.getTime() > latestEnd.getTime()) latestEnd = entry.endDate;
+    }
+
+    if (addPeople.length > 0) {
+      parts.push(
+        '<div class="rec-block">',
+        '<strong>Fit release into timeline</strong>',
+        ' Add more people so work finishes by ' + escapeHtml(formatDate(endDate)) + ':',
+        '<ul>' + addPeople.map(a => `<li><strong>Sl No ${a.slNo}</strong> (${a.summary}): add +${a.extra} people → ${a.needed} total</li>`).join('') + '</ul>',
+        '</div>'
+      );
+    }
+    parts.push(
+      '<div class="rec-block">',
+      '<strong>Or move release out</strong>',
+      ' Set target date to ' + escapeHtml(formatDate(latestEnd)) + ' so the current plan finishes by then.',
+      '</div>'
+    );
+  } else if (longPoles.length > 0) {
+    parts.push(
+      '<div class="rec-block">',
+      '<strong>Long poles drive the timeline</strong>',
+      ' Schedule fits within target date. To shorten the schedule, add people to the long-pole projects above; spare capacity in earlier months could be shifted to them.',
+      '</div>'
+    );
+  } else {
+    section.style.display = 'none';
+    return;
+  }
+
+  contentEl.innerHTML = parts.join('');
+  section.style.display = 'block';
+}
+
+/**
  * Main render: filter, pack, render Gantt and insight sections.
  */
 function render() {
   const state = getScheduleState();
-  setFilters({ commitment: state.commitment, priority: state.priority });
+  setFilters({ priority: state.priority });
 
-  let filtered = filterByCommitment(projects, state.commitment);
-  filtered = filterByPriority(filtered, state.priority);
+  let filtered = filterByPriority(projects, state.priority);
+  detectResourceGroups(filtered);
   tagPriorityTiers(filtered);
 
   const ganttSection = getEl('ganttSection');
@@ -233,7 +485,7 @@ function render() {
 
   const farEnd = new Date(state.startDate);
   farEnd.setFullYear(farEnd.getFullYear() + 5);
-  const schedule = packWithCapacity(filtered, state.startDate, farEnd, state.capacity, state.capacityPct);
+  const schedule = packWithCapacity(filtered, state.startDate, farEnd, state.numFTEs, state.capacityPct);
   const timelineEnd = getScheduleEnd(schedule);
   const timeline = { startDate: state.startDate, endDate: timelineEnd || state.startDate };
 
@@ -251,7 +503,7 @@ function render() {
     const extendedNote = timelineEnd && timelineEnd.getTime() > state.endDate.getTime()
       ? ' (bar chart extends to actual finish — dependencies and capacity serialize work)'
       : '';
-    const countText = (state.commitment || state.priority) && projects.length > 0
+    const countText = state.priority && projects.length > 0
       ? ` Showing ${filtered.length} of ${projects.length} projects.`
       : '';
     scheduleSummary.textContent = rangeText + extendedNote + countText;
@@ -265,7 +517,7 @@ function render() {
   filtered.forEach(p => {
     if (p.isResourceGroupChild && p.resourceGroupParentRow != null) childToParent.set(p.rowNumber, p.resourceGroupParentRow);
   });
-  const displaySchedule = orderScheduleByBlockersFirst(schedule, dependentsByProject);
+  const { schedule: displaySchedule, tierBreaks } = orderScheduleByBlockersFirst(schedule, dependentsByProject);
 
   const ax = getEl('ganttAxis');
   const chart = getEl('ganttChart');
@@ -278,14 +530,15 @@ function render() {
     visibleRange,
     deadlineDate: state.endDate,
     labelsContainer: getEl('ganttLabels'),
+    tierBreaks,
   });
 
   const effectiveEnd = timelineEnd && timelineEnd.getTime() > state.endDate.getTime() ? timelineEnd : state.endDate;
-  const scheduleCommitted = schedule.filter(e => e.project && norm(e.project.commitment) === 'committed');
-  renderSpareCapacity(scheduleCommitted, state.startDate, effectiveEnd, state.capacity, state.numFTEs, state.capacityPct, visibleRange);
-  const longPoles = getLongPoles(scheduleCommitted, effectiveEnd, 0.25);
+  renderSpareCapacity(schedule, state.startDate, effectiveEnd, state.capacity, state.numFTEs, state.capacityPct, visibleRange);
+  const longPoles = getLongPoles(schedule, effectiveEnd, 0.25);
   renderLongPoles(longPoles, effectiveEnd);
-  renderPastDeadline(scheduleCommitted, state.endDate);
+  renderPastDeadline(schedule, state.endDate);
+  renderRecommendations(schedule, state.endDate, state.capacityPct, state.numFTEs, longPoles, timelineEnd);
 
   const statusEl = getEl('status');
   if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
@@ -293,40 +546,55 @@ function render() {
 }
 
 /**
- * Load projects: prefer data/projects.json (all projects), then fall back to state/localStorage.
+ * Load projects: prefer state/localStorage (user's upload) so navigating away and back keeps data; fall back to data/projects.json when empty.
  * @returns {Promise<void>}
  */
 async function loadProjects() {
   const statusEl = getEl('status');
   try {
-    const res = await fetch('data/projects.json');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        detectResourceGroups(data);
-        projects = data;
-        setProjects(data);
+    projects = getScheduleData();
+    if (projects.length > 0) {
+      logger.debug('schedule.loadProjects: from schedule data', projects.length);
+      if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
+      render();
+      return;
+    }
+    /* Legacy: upgrade from old UPLOAD_STORAGE_KEY */
+    const raw = getProjects();
+    if (raw.length > 0) {
+      const { projects: scheduled } = prepareScheduleData(raw);
+      if (scheduled.length > 0) {
+        projects = scheduled;
+        setScheduleData(scheduled);
         if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
         render();
         return;
       }
     }
-    projects = getProjects();
-    if (projects.length > 0) {
-      logger.debug('schedule.loadProjects: from state', projects.length);
-      render();
-      return;
+    /* Fallback: pre-built committed-schedule.json */
+    for (const path of ['data/committed-schedule.json', 'data/projects.json']) {
+      try {
+        const res = await fetch(path);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const { projects: scheduled } = path.includes('committed') ? { projects: data } : prepareScheduleData(data);
+            if (scheduled.length > 0) {
+              projects = scheduled;
+              setScheduleData(projects);
+              if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
+              render();
+              return;
+            }
+          }
+        }
+      } catch (_) {}
     }
   } catch (e) {
-    logger.warn('schedule.loadProjects: fetch failed', e);
-    projects = getProjects();
-    if (projects.length > 0) {
-      render();
-      return;
-    }
+    logger.warn('schedule.loadProjects: failed', e);
   }
   if (statusEl) {
-    statusEl.textContent = 'No project data. Upload a CSV or JSON on 1. Refresh CSV, or add data/projects.json.';
+    statusEl.textContent = 'No project data. Upload a CSV, XLSX, or JSON on the Refresh data tab.';
     statusEl.className = 'error';
   }
 }
@@ -369,9 +637,7 @@ function bindControls() {
     }
   });
 
-  const commitmentEl = getEl('commitment');
   const priorityEl = getEl('priority');
-  if (commitmentEl) commitmentEl.addEventListener('change', scheduleUpdate);
   if (priorityEl) priorityEl.addEventListener('change', scheduleUpdate);
 
   const submitBtn = getEl('submitBtn');
@@ -402,9 +668,7 @@ function bindControls() {
  */
 function applyStoredFilters() {
   const f = getFilters();
-  const commitmentEl = getEl('commitment');
   const priorityEl = getEl('priority');
-  if (commitmentEl && f.commitment) commitmentEl.value = f.commitment;
   if (priorityEl && f.priority) priorityEl.value = f.priority;
 }
 

@@ -12,7 +12,7 @@
     <h1>NDB 3.0 – Project bin packing</h1>
 
     <nav class="tabs" role="tablist">
-      <a href="upload.html" class="tab" role="tab">1. Refresh CSV</a>
+      <a href="upload.html" class="tab" role="tab">1. Refresh data</a>
       <a href="index.html" class="tab active" role="tab" aria-current="page">2. Schedule</a>
       <a href="dependencies.html" class="tab" role="tab">3. Dependencies</a>
       <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
@@ -36,15 +36,8 @@
           <label for="endDate">End date (viewport &amp; target)</label>
           <input type="date" id="endDate" value="2027-01-30" title="Initial view and target date; scroll right for projects beyond">
         </div>
-        <div class="control-group">
-          <label for="commitment">3.0 Commitment Status</label>
-          <select id="commitment">
-            <option value="">All</option>
-            <option value="Committed" selected>Committed</option>
-            <option value="Approved">Approved</option>
-          </select>
-        </div>
-        <div class="control-group">
+        <!-- Priority filter: hidden until P1 projects are added to committed data -->
+        <div class="control-group" id="priorityFilterGroup" style="display:none">
           <label for="priority">Priority</label>
           <select id="priority">
             <option value="">All</option>
@@ -65,14 +58,14 @@
       <div id="ganttSection" class="gantt-section" style="display: none;">
         <h2 id="ganttTitle">Schedule</h2>
         <div class="gantt-wrapper">
-          <div id="ganttLabels" class="gantt-labels" aria-label="Column B (group), Column C (project)"></div>
+          <div id="ganttLabels" class="gantt-labels" aria-label="Sl No, Column B (group), Column C (project), Available (pool)"></div>
           <div class="gantt-chart-scroll">
             <div id="ganttAxis" class="gantt-axis"></div>
             <div id="ganttChart"></div>
           </div>
         </div>
         <div class="legend">
-          <span>Realistic schedule: 1 person = 1 project at a time. Start dates respect hard dependencies.</span>
+          <span>Max-parallel schedule: every project starts as early as dependencies allow. Over-commitment shown in capacity chart.</span>
           <span>Bar length = duration: Total person-months ÷ (Dev resources × Capacity %).</span>
           <span>Bar thickness = Dev resources (max parallelization)</span>
           <span id="capacityLegend"></span>
@@ -84,6 +77,8 @@
           <div class="color-legend-item"><span class="color-swatch color-swatch--group-parent"></span> Resource group parent (sub-projects share FTEs)</div>
           <div class="color-legend-item"><span class="color-swatch color-swatch--group-child"></span> Resource group child (no additional capacity)</div>
           <div class="color-legend-item"><span class="color-swatch color-swatch--past-deadline"></span> Extends past target date</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--dep-dev"></span> Dev-blocker dependency (must finish before dependent starts)</div>
+          <div class="color-legend-item"><span class="color-swatch color-swatch--dep-other"></span> Other dependency (rel-blocker / plain)</div>
         </div>
 
         <section id="spareCapacitySection" class="insight-section" aria-label="Spare capacity" style="display: none;">
@@ -103,6 +98,12 @@
           <h3>Past target date</h3>
           <p id="pastDeadlineDesc" class="insight-desc"></p>
           <ul id="pastDeadlineList" class="insight-list"></ul>
+        </section>
+
+        <section id="recommendationsSection" class="insight-section" aria-label="Recommendations" style="display: none;">
+          <h3>Recommendations</h3>
+          <p id="recommendationsDesc" class="insight-desc">How to fit the release into the timeline or when to move it.</p>
+          <div id="recommendationsContent" class="recommendations-content"></div>
         </section>
       </div>
 

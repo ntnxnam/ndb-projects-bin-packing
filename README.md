@@ -108,7 +108,7 @@ The app treats four kinds of projects; **ranking** uses only **"Dependency Numbe
 
 ```
 ├── index.html          # 2. Schedule (Gantt, spare capacity, long poles)
-├── upload.html         # 1. Refresh CSV (upload, verify table, export)
+├── upload.html         # 1. Refresh data (upload CSV/XLSX/JSON, verify table, export)
 ├── dependencies.html  # 3. Dependencies (graph)
 ├── bottom-up.html      # 4. Bottom up (CSV vs schedule challenges)
 ├── css/main.css        # Layout and Gantt styles
@@ -119,7 +119,7 @@ The app treats four kinds of projects; **ranking** uses only **"Dependency Numbe
 │   ├── state.js        # localStorage: getProjects, setProjects, getFilters, setFilters
 │   ├── filters.js      # filterByCommitment, filterByPriority, tagPriorityTiers
 │   ├── sizing.js       # SIZING_MONTHS, durationMonths, effectiveDurationMonths, totalResources
-│   ├── resource-groups.js # detectResourceGroups (feat-capacity, uber-by-FEAT, summary-prefix)
+│   ├── resource-groups.js # detectResourceGroups (peer buckets + uber parent/child by FEAT)
 │   ├── ranking.js      # orderByDependencyAndSize, getDependentsCounts, getRankLabel, orderScheduleByBlockersFirst
 │   ├── bin-packing.js  # packWithCapacity, getScheduleEnd, getLongPoles, getDependentsCounts
 │   ├── csv-parser.js   # parseCSV, csvToProjects, detectResourceGroups re-export
@@ -137,10 +137,21 @@ The app treats four kinds of projects; **ranking** uses only **"Dependency Numbe
 └── README.md
 ```
 
+## Display ranking: 3-tier Gantt layout
+
+The Gantt chart groups projects into three visual sections, each separated by a lightweight divider:
+
+1. **In Progress** — projects already started; sorted by soonest completion. Finish these first to free capacity.
+2. **Ready to Start** — all dependencies met; sorted by how many downstream projects each one unblocks (most first), then longest duration first.
+3. **Waiting on Dependencies** — start is gated by an unfinished dependency; sorted by earliest possible start date (pipeline order).
+
+This ordering maximises throughput by reducing WIP, prioritising work that unblocks the most others, and surfacing long jobs early.
+
 ## Conventions (from planning context)
 
 - **Max parallelization:** More people can shorten calendar time; some work cannot be fully parallelized.
 - **60% capacity:** Only 60% of a person’s time is assumed for this planning; the rest is other work.
 - **3 devs : 1 QA:** QA headcount is derived from dev count by this ratio.
+- **Duration:** `totalPersonMonths / (devResources x capacityPct)`. E.g. 9 person-months with 3 people at 60% = 5 months.
 
 These are reflected in the source CSV and sizing; the Gantt uses **duration** and **total resources** as provided in the prepared data.
