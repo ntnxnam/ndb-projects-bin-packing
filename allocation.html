@@ -48,9 +48,19 @@
         </div>
       </section>
 
+      <section class="upload-section" aria-label="Project list (frozen)" style="margin-top: 1.5rem;">
+        <h3 class="upload-table-title">Project list for allocation</h3>
+        <p class="upload-desc">Allocations use a <strong>frozen</strong> copy of the schedule so the project list does not change when someone uploads new data. Freeze once to capture the current list; replace only when you want to switch to the latest schedule.</p>
+        <p id="allocationFrozenLabel" class="upload-desc" style="display: none;"></p>
+        <div class="upload-submit-row">
+          <button type="button" id="allocationFreezeBtn" class="btn-submit">Freeze current schedule</button>
+          <button type="button" id="allocationReplaceBtn" class="btn-export" style="display: none;">Replace with current schedule</button>
+        </div>
+      </section>
+
       <section class="upload-section" aria-label="Allocations" style="margin-top: 1.5rem;">
         <h3 class="upload-table-title">Add allocation</h3>
-        <p class="upload-desc">Projects are from the committed schedule only. Allocations show in the Gantt below as you edit.</p>
+        <p class="upload-desc">Projects are from the frozen list above. Allocations show in the Gantt below as you edit.</p>
         <div class="controls">
           <div class="control-group">
             <label for="allocationPerson">Person</label>
