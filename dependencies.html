@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3. Dependencies – NDB Projects</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div class="app">
+    <h1>NDB 3.0 – Project bin packing</h1>
+
+    <nav class="tabs" role="tablist">
+      <a href="upload.html" class="tab" role="tab">1. Refresh data</a>
+      <a href="index.html" class="tab" role="tab">2. Schedule</a>
+      <a href="dependencies.html" class="tab active" role="tab" aria-current="page">3. Dependencies</a>
+      <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
+    </nav>
+
+    <div class="tab-panel" role="main">
+      <section class="dependency-graph-section" aria-label="Dependency graph">
+        <h2>Dependency graph</h2>
+        <p class="dependency-graph-desc">Projects with dependencies shown as a directed graph. Arrows flow left-to-right from a dependency to the project it blocks. The <strong>critical chain</strong> (longest dependency path) is highlighted in blue. Hover any node to trace its full upstream/downstream chain.</p>
+        <div id="dependencyGraph" class="dependency-graph-container"></div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="js/dependencies.js"></script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5. People allocation – NDB Projects</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div class="app">
+    <h1>NDB 3.0 – Project bin packing</h1>
+
+    <nav class="tabs" role="tablist">
+      <a href="upload.html" class="tab" role="tab">1. Refresh data</a>
+      <a href="index.html" class="tab" role="tab">2. Schedule</a>
+      <a href="dependencies.html" class="tab" role="tab">3. Dependencies</a>
+      <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
+      <a href="allocation.html" class="tab active" role="tab" aria-current="page">5. People allocation</a>
+    </nav>
+
+    <div id="allocationPanel" class="tab-panel" role="main">
+      <section class="upload-section" aria-label="Staff and headcount">
+        <h2>5. People allocation</h2>
+        <p class="upload-desc">Allocate people to projects (committed schedule only). Until you upload a staff list, placeholders <strong>Person 1, 2, 3 …</strong> are used; the count is the FTE headcount below. Upload an Excel or CSV with columns <strong>Name</strong> and <strong>Capacity %</strong> to replace placeholders.</p>
+
+        <div class="controls">
+          <div class="control-group">
+            <label for="allocationHeadcount">FTE headcount (placeholder count)</label>
+            <input type="number" id="allocationHeadcount" min="1" max="500" value="85" title="Number of people (Person 1 … N) until you upload staff">
+          </div>
+          <div class="control-group">
+            <label for="allocationTemplateBtn">&nbsp;</label>
+            <button type="button" id="allocationTemplateBtn" class="btn-export">Download staff template (CSV)</button>
+          </div>
+        </div>
+
+        <div class="upload-controls">
+          <input type="file" id="allocationStaffFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Choose staff CSV or XLSX">
+        </div>
+        <p class="upload-status-row"><span id="allocationStaffStatus" class="upload-status">No file chosen. Select a staff CSV or XLSX, or use placeholders.</span></p>
+        <div id="allocationStaffSubmitRow" class="upload-submit-row" style="display: none;">
+          <button type="button" id="allocationStaffSubmitBtn" class="btn-submit">Submit staff</button>
+        </div>
+        <div id="allocationStaffTableWrap" class="upload-table-wrap" style="display: none;">
+          <h3 class="upload-table-title">Staff (Name, Capacity %)</h3>
+          <div id="allocationStaffTableContainer" class="upload-table-container"></div>
+        </div>
+      </section>
+
+      <section class="upload-section" aria-label="Allocations" style="margin-top: 1.5rem;">
+        <h3 class="upload-table-title">Add allocation</h3>
+        <p class="upload-desc">Projects are from the committed schedule only. Allocations show in the Gantt below as you edit.</p>
+        <div class="controls">
+          <div class="control-group">
+            <label for="allocationPerson">Person</label>
+            <select id="allocationPerson"></select>
+          </div>
+          <div class="control-group">
+            <label for="allocationProject">Project</label>
+            <select id="allocationProject"></select>
+          </div>
+          <div class="control-group">
+            <label for="allocationFrom">From date</label>
+            <input type="date" id="allocationFrom">
+          </div>
+          <div class="control-group">
+            <label for="allocationTo">To date</label>
+            <input type="date" id="allocationTo">
+          </div>
+          <div class="control-group">
+            <label for="allocationPct">% on this project</label>
+            <input type="number" id="allocationPct" min="1" max="100" value="100" title="Allocation % on this project">
+          </div>
+          <div class="control-group">
+            <label>&nbsp;</label>
+            <button type="button" id="allocationAddBtn" class="btn-submit">Add</button>
+          </div>
+        </div>
+        <div id="allocationListWrap" class="upload-table-wrap">
+          <h3 class="upload-table-title">Current allocations</h3>
+          <div id="allocationListContainer" class="upload-table-container"></div>
+        </div>
+      </section>
+
+      <section id="allocationCapacitySection" class="insight-section" aria-label="Remaining capacity" style="display: none; margin-top: 1.5rem;">
+        <h3>Allocated vs total capacity</h3>
+        <p id="allocationCapacityDesc" class="insight-desc"></p>
+        <div id="allocationCapacityChart" class="spare-capacity-chart"></div>
+      </section>
+
+      <section id="allocationGanttSection" class="gantt-section" style="display: none; margin-top: 1.5rem;" aria-label="Allocations Gantt">
+        <h3 class="upload-table-title">Allocations by person (Gantt)</h3>
+        <div class="gantt-wrapper">
+          <div id="allocationGanttLabels" class="gantt-labels"></div>
+          <div class="gantt-chart-scroll">
+            <div id="allocationGanttAxis" class="gantt-axis"></div>
+            <div id="allocationGanttChart"></div>
+          </div>
+        </div>
+      </section>
+
+      <div id="allocationStatus" class="status"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/allocation.js"></script>
+</body>
+</html>

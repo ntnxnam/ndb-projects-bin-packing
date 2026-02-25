@@ -1,3 +1,8 @@
 # Leadership Report – archived; content in leadership-report.archive.md
 leadership-report/
 leadership-report.archive.md
+# Optional: uncomment to avoid committing raw CSV
+# data/sheet1.csv
+node_modules/
+.DS_Store
+*.zip

@@ -1,7 +1,8 @@
 {
-  "name": "random-designs",
+  "name": "ndb-projects-bin-packing",
   "private": true,
   "scripts": {
+    "start": "npx serve . -l 3847",
     "ndb": "npx serve ndb-projects-bin-packing -l 3847"
   }
 }

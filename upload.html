@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1. Refresh data – NDB Projects</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232d3748' rx='4'/><text x='16' y='22' font-size='16' font-family='system-ui,sans-serif' fill='%2385c1e9' text-anchor='middle' font-weight='bold'>N</text></svg>" type="image/svg+xml">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div class="app">
+    <h1>NDB 3.0 – Project bin packing</h1>
+
+    <nav class="tabs" role="tablist">
+      <a href="upload.html" class="tab active" role="tab" aria-current="page">1. Refresh data</a>
+      <a href="index.html" class="tab" role="tab">2. Schedule</a>
+      <a href="dependencies.html" class="tab" role="tab">3. Dependencies</a>
+      <a href="bottom-up.html" class="tab" role="tab">4. Bottom up</a>
+    </nav>
+
+    <div id="uploadPanel" class="tab-panel" role="main">
+      <div class="upload-section">
+        <p class="upload-desc">Upload a prioritization spreadsheet (XLSX or CSV, same columns as Sheet1) or a previously exported project-data JSON. XLSX supports merged cells. Submit to use in Schedule. Data is kept in this browser and loaded from <code>data/projects.json</code> when present.</p>
+        <div class="upload-controls">
+          <input type="file" id="csvFileInput" accept=".csv,.xlsx,.json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" aria-label="Choose CSV, XLSX, or JSON file">
+        </div>
+        <p class="upload-status-row"><span id="uploadStatus" class="upload-status">No file chosen. Select a .csv, .xlsx, or .json file above.</span></p>
+        <div id="uploadSubmitRow" class="upload-submit-row">
+          <button type="button" id="uploadSubmitBtn" class="btn-submit" title="Select a CSV, XLSX, or JSON file above first">Submit</button>
+          <span class="upload-submit-hint">Review the table below, then go to the Schedule tab when ready.</span>
+        </div>
+        <div id="exportRow" class="upload-submit-row" style="display: none;">
+          <button type="button" id="exportJsonBtn" class="btn-export" title="Download as JSON; save as data/projects.json so the app loads it next time without re-uploading">Export project data (JSON)</button>
+        </div>
+        <div id="uploadTableWrap" class="upload-table-wrap" style="display: none;">
+          <h3 class="upload-table-title">Verify projects (ordered by Sl No)</h3>
+          <div id="uploadTableContainer" class="upload-table-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/upload.js"></script>
+</body>
+</html>
