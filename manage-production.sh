@@ -42,14 +42,22 @@ free_port
 
 echo "Starting NDB projects bin-packing on 0.0.0.0:$PORT"
 if command -v python3 >/dev/null 2>&1; then
-  # Prefer 0.0.0.0 so the server is reachable from other machines (Python 3.8+ has --bind)
-  if python3 -m http.server --help 2>&1 | grep -q bind; then
-    nohup python3 -m http.server "$PORT" --bind 0.0.0.0 --directory "$DIR" > "$LOG" 2>&1 &
-  else
-    cd "$DIR" && nohup python3 -m http.server "$PORT" > "$LOG" 2>&1 &
-  fi
+  nohup python3 -c "
+import os, sys
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+class NoCacheHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
+        super().end_headers()
+
+os.chdir('$DIR')
+HTTPServer(('0.0.0.0', $PORT), NoCacheHandler).serve_forever()
+" > "$LOG" 2>&1 &
 elif command -v npx >/dev/null 2>&1; then
-  nohup npx -y serve "$DIR" -l "$PORT" > "$LOG" 2>&1 &
+  nohup npx -y serve "$DIR" -l "$PORT" --no-clipboard -c '\"headers\": [{\"source\": \"**\", \"headers\": [{\"key\": \"Cache-Control\", \"value\": \"no-cache, no-store, must-revalidate\"}]}]' > "$LOG" 2>&1 &
 else
   echo "Need python3 or npx (Node) to serve. Install one and re-run."
   exit 1
