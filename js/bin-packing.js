@@ -646,8 +646,63 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     }
   }
 
-  logger.debug('bin-packing.packWithCapacity: scheduled', newResult.length, 'entries');
-  return newResult;
+  /* Reorder within each tier by start month so the Remaining column
+     decreases coherently. Pool children stay immediately after their parent. */
+  const parents = [];
+  const childMap = new Map();
+  let currentParentRow = null;
+  for (const e of newResult) {
+    if (e.isResourceGroupChild || e.isPoolSubProject) {
+      if (currentParentRow != null) {
+        if (!childMap.has(currentParentRow)) childMap.set(currentParentRow, []);
+        childMap.get(currentParentRow).push(e);
+      }
+    } else {
+      parents.push(e);
+      currentParentRow = e.project?.rowNumber ?? null;
+    }
+  }
+
+  parents.sort((a, b) => {
+    const ta = a._displayTier ?? 1;
+    const tb = b._displayTier ?? 1;
+    if (ta !== tb) return ta - tb;
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
+
+  /* Recalculate _remainingAtPlacement in display order using a fresh usage scan */
+  const displayUsage = new Map();
+  const sortedResult = [];
+  for (const entry of parents) {
+    const sMo = monthIndex(entry.startDate);
+    entry._remainingAtPlacement = capacityFTE > 0
+      ? Math.max(0, capacityFTE - (displayUsage.get(sMo) ?? 0))
+      : null;
+    const fte = entry.fte ?? 0;
+    const eMo = monthIndex(entry.endDate);
+    if (entry.isPoolContainer && entry.project?._poolSchedule) {
+      const poolStartMo = entry.project._poolStartMonth ?? sMo;
+      for (const sub of entry.project._poolSchedule) {
+        for (let m = sub.startMonthOffset; m < sub.startMonthOffset + sub.months; m++) {
+          const abs = poolStartMo + m;
+          displayUsage.set(abs, (displayUsage.get(abs) ?? 0) + 1);
+        }
+      }
+    } else {
+      const reserved = Math.ceil(fte);
+      for (let m = sMo; m < eMo; m++) {
+        displayUsage.set(m, (displayUsage.get(m) ?? 0) + reserved);
+      }
+    }
+    sortedResult.push(entry);
+    const pRow = entry.project?.rowNumber;
+    if (pRow != null && childMap.has(pRow)) {
+      sortedResult.push(...childMap.get(pRow));
+    }
+  }
+
+  logger.debug('bin-packing.packWithCapacity: scheduled', sortedResult.length, 'entries');
+  return sortedResult;
 }
 
 /**
