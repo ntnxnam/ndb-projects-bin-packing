@@ -560,17 +560,42 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     }
 
     /* Capacity-constrained scheduling: start as early as dependencies allow,
-       then slide forward until the project's people fit within remaining capacity. */
+       then slide forward until the project's people fit within remaining capacity.
+       Pool parents use actual per-month sub-project utilization instead of a
+       flat block reservation so idle pool slots remain available to other projects. */
     let startMonth = earliestStartMonth;
-    while (!canFit(startMonth, months, fte)) {
-      startMonth++;
+
+    if (isPoolParent && p._poolSchedule) {
+      const poolUsageByMonth = new Map();
+      for (const sub of p._poolSchedule) {
+        for (let m = sub.startMonthOffset; m < sub.startMonthOffset + sub.months; m++) {
+          poolUsageByMonth.set(m, (poolUsageByMonth.get(m) ?? 0) + 1);
+        }
+      }
+      const canFitPoolGlobal = (offset) => {
+        for (const [relMonth, slotsUsed] of poolUsageByMonth) {
+          const absMonth = offset + relMonth;
+          if ((usage.get(absMonth) ?? 0) + slotsUsed > capacityFTE) return false;
+        }
+        return true;
+      };
+      while (!canFitPoolGlobal(startMonth)) startMonth++;
+
+      for (const [relMonth, slotsUsed] of poolUsageByMonth) {
+        const absMonth = startMonth + relMonth;
+        usage.set(absMonth, (usage.get(absMonth) ?? 0) + slotsUsed);
+      }
+      p._poolStartMonth = startMonth;
+    } else {
+      while (!canFit(startMonth, months, fte)) {
+        startMonth++;
+      }
+      addUsage(startMonth, months, fte);
     }
 
     const startDateObj = dateFromMonthIndex(startMonth);
     const endDateObj = dateFromMonthIndex(startMonth + months);
-
     const remainingBefore = capacityFTE - (usage.get(startMonth) ?? 0);
-    addUsage(startMonth, months, fte);
     const entry = {
       project: p, startDate: startDateObj, endDate: endDateObj, fte,
       rotated: false, rotatedFteCount: 0, inProgress: isInProgress,
