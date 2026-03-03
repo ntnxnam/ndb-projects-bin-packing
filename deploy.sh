@@ -47,7 +47,7 @@ ssh "${SSH_OPTS[@]}" "$REMOTE" "cd $REMOTE_DIR && \
   unzip -o $ZIP_NAME -d . && \
   sh manage-production.sh"
 
-echo "=== Waiting for server to bind to port 3847 ==="
+echo "==== Waiting for server to bind to port 3847 ==="
 sleep 3
 
 echo "=== Check on server: is app listening? ==="
