@@ -154,10 +154,10 @@ main() {
         cd ${SERVER_DEPLOY_PATH}
         
         echo -e "${CYAN}▶ Backing up current version...${NC}"
-        BACKUP_DIR="${SERVER_DEPLOY_PATH}_backup_${TIMESTAMP}"
+        BACKUP_DIR="${SERVER_DEPLOY_PATH}/_backups/${TIMESTAMP}"
         if [ -f "index.html" ]; then
             mkdir -p "\${BACKUP_DIR}"
-            cp -a . "\${BACKUP_DIR}/" 2>/dev/null || true
+            cp -a index.html js css *.sh "\${BACKUP_DIR}/" 2>/dev/null || true
             echo -e "${GREEN}✓ Backup created: \${BACKUP_DIR}${NC}"
         else
             echo -e "${YELLOW}⚠ No existing deployment found (fresh install)${NC}"
@@ -201,7 +201,7 @@ main() {
         echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
         echo ""
         echo -e "${BLUE}📦 Archive preserved on server: ${YELLOW}${ZIP_FILENAME}${NC}"
-        echo -e "${BLUE}💾 Backup at: ${YELLOW}\${BACKUP_DIR}${NC}"
+        echo -e "${BLUE}💾 Backup at: ${YELLOW}_backups/${TIMESTAMP}${NC}"
         echo ""
 ENDSSH
     
