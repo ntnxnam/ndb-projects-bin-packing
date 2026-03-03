@@ -9,25 +9,33 @@ LOG=/tmp/ndb-projects-bin-packing.log
 # Free port if something is already bound (e.g. previous run)
 free_port() {
   local pids
+  # Prefer fuser -k (Linux): one-shot kill of whatever is on the port
+  if command -v fuser >/dev/null 2>&1; then
+    if fuser "$PORT/tcp" 2>/dev/null; then
+      echo "Stopping existing process(es) on port $PORT (fuser -k)"
+      fuser -k "$PORT/tcp" 2>/dev/null || true
+      sleep 2
+    fi
+  fi
+  # Fallback / extra: lsof to find and kill by PID
   if command -v lsof >/dev/null 2>&1; then
     pids=$(lsof -ti ":$PORT" 2>/dev/null) || true
-  elif command -v fuser >/dev/null 2>&1; then
-    pids=$(fuser "$PORT/tcp" 2>/dev/null) || true
-  fi
-  if [ -n "$pids" ]; then
-    echo "Stopping existing process(es) on port $PORT (PID(s) $pids)"
-    for pid in $pids; do kill $pid 2>/dev/null || true; done
-    sleep 2
-    pids=$(lsof -ti ":$PORT" 2>/dev/null) || true
     if [ -n "$pids" ]; then
-      echo "Force-killing process(es) still on port $PORT"
-      for pid in $pids; do kill -9 $pid 2>/dev/null || true; done
-      sleep 1
+      echo "Stopping existing process(es) on port $PORT (PID(s) $pids)"
+      for pid in $pids; do kill $pid 2>/dev/null || true; done
+      sleep 2
+      pids=$(lsof -ti ":$PORT" 2>/dev/null) || true
+      if [ -n "$pids" ]; then
+        echo "Force-killing process(es) still on port $PORT"
+        for pid in $pids; do kill -9 $pid 2>/dev/null || true; done
+        sleep 1
+      fi
     fi
-    if command -v fuser >/dev/null 2>&1; then
-      fuser -k "$PORT/tcp" 2>/dev/null || true
-      sleep 1
-    fi
+  fi
+  # Ensure port is free before we start
+  if command -v lsof >/dev/null 2>&1; then
+    pids=$(lsof -ti ":$PORT" 2>/dev/null) || true
+    [ -z "$pids" ] || { echo "Port $PORT still in use (PIDs: $pids). Aborting."; exit 1; }
   fi
 }
 free_port

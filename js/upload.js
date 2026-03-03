@@ -262,20 +262,28 @@ function bindControls() {
     uploadSubmitBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const hasPending = pendingUploadProjects && pendingUploadProjects.length > 0;
-      const hasSaved = getProjects().length > 0;
-      if (!hasPending && !hasSaved) {
+      try {
+        const hasPending = pendingUploadProjects && pendingUploadProjects.length > 0;
+        const hasSaved = getProjects().length > 0;
+        if (!hasPending && !hasSaved) {
+          if (uploadStatus) {
+            uploadStatus.textContent = 'Select a CSV, XLSX, or JSON file above first.';
+            uploadStatus.className = 'upload-status error';
+          }
+          return;
+        }
         if (uploadStatus) {
-          uploadStatus.textContent = 'Select a CSV, XLSX, or JSON file above first.';
+          uploadStatus.textContent = 'Submitting…';
+          uploadStatus.className = 'upload-status';
+        }
+        runUploadSubmit();
+      } catch (err) {
+        logger.error('upload.submit click error', err);
+        if (uploadStatus) {
+          uploadStatus.textContent = 'Submit failed: ' + (err && err.message ? err.message : String(err));
           uploadStatus.className = 'upload-status error';
         }
-        return;
       }
-      if (uploadStatus) {
-        uploadStatus.textContent = 'Submitting…';
-        uploadStatus.className = 'upload-status';
-      }
-      runUploadSubmit();
     });
   }
 
@@ -299,14 +307,23 @@ function bindControls() {
  * On load: if we have projects in state, show export and optionally table.
  */
 function init() {
-  bindControls();
-  const projects = getProjects();
-  if (projects.length > 0) {
-    showExportRow();
-    showUploadSubmitRow();
-    renderUploadTable(projects);
-    const wrap = getEl('uploadTableWrap');
-    if (wrap) wrap.style.display = 'block';
+  const uploadStatus = getEl('uploadStatus');
+  try {
+    bindControls();
+    const projects = getProjects();
+    if (projects.length > 0) {
+      showExportRow();
+      showUploadSubmitRow();
+      renderUploadTable(projects);
+      const wrap = getEl('uploadTableWrap');
+      if (wrap) wrap.style.display = 'block';
+    }
+  } catch (err) {
+    logger.error('upload.init', err);
+    if (uploadStatus) {
+      uploadStatus.textContent = 'Page error: ' + (err && err.message ? err.message : String(err));
+      uploadStatus.className = 'upload-status error';
+    }
   }
 }
 

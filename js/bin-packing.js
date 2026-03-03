@@ -14,6 +14,45 @@ import { logger } from './logger.js';
 /** When duration is missing and no sizing label: assume 1 FTE → long bar (months). */
 const DEFAULT_DURATION_WHEN_UNKNOWN = 12;
 
+const MONTH_NAMES = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+/**
+ * Parse a requested start date string into a Date (1st of that month).
+ * Accepts: YYYY-MM-DD, YYYY-MM, "Jun 2026", "June 2026", "2026-06", month number (1–12),
+ * or Excel serial numbers. Returns null if unparseable.
+ * @param {string} raw
+ * @param {Date} timelineStart - schedule start, used to infer year when only month is given
+ * @returns {Date|null}
+ */
+function parseRequestedStartDate(raw, timelineStart) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+  if (isoMatch) return new Date(+isoMatch[1], +isoMatch[2] - 1, 1);
+
+  const monthNameMatch = s.match(/^([A-Za-z]+)\s*(\d{4})$/);
+  if (monthNameMatch) {
+    const mi = MONTH_NAMES.indexOf(monthNameMatch[1].slice(0, 3).toLowerCase());
+    if (mi >= 0) return new Date(+monthNameMatch[2], mi, 1);
+  }
+
+  const monthNumOnly = s.match(/^(\d{1,2})$/);
+  if (monthNumOnly) {
+    const m = +monthNumOnly[1];
+    if (m >= 1 && m <= 12) return new Date(timelineStart.getFullYear(), m - 1, 1);
+  }
+
+  const serial = parseFloat(s);
+  if (!Number.isNaN(serial) && serial > 40000) {
+    const d = new Date(Math.round((serial - 25569) * 86400000));
+    if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+
+  return null;
+}
+
 /**
  * Build a map: child rowNumber → parent rowNumber, for resource groups.
  * When a project depends on a child, treat it as depending on the parent.
@@ -438,6 +477,14 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
 
     /* All dependencies: cannot START until the dependency finishes (strict sequencing). */
     let earliestStartMonth = 0;
+
+    if (p.requestedStartDate) {
+      const reqDate = parseRequestedStartDate(p.requestedStartDate, timelineStart);
+      if (reqDate) {
+        earliestStartMonth = Math.max(earliestStartMonth, monthIndex(reqDate));
+      }
+    }
+
     if (!isInProgress) {
       const internalDepRows = (p.dependencyRowNumbers || [])
         .map(depRow => resolveDepRow(depRow, childToParent))

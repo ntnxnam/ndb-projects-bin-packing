@@ -150,6 +150,7 @@ export function rowsToProjects(rows) {
       ? iTotalPersonMonthsStartsWith
       : iTotalPersonMonthsContains;
   const iQAResources = header.findIndex(h => (h || '').trim().indexOf('Num of QA required') === 0);
+  const iStartDate = idx('Start Date') >= 0 ? idx('Start Date') : idx('Start Month');
   const iAdditionalResources = idx('Additional Resources');
   const iSizingComment = idx('Sizing Comment');
   const iCompletedPctExact = idx('How much of this is Completed in % (do not add %, just put a number)');
@@ -194,6 +195,7 @@ export function rowsToProjects(rows) {
     const totalPersonMonthsRaw = _totalPersonMonthsCol >= 0 ? (row[_totalPersonMonthsCol] || '').trim() : '';
     const additionalResources = iAdditionalResources >= 0 ? (row[iAdditionalResources] || '').trim() : '';
     const sizingComment = iSizingComment >= 0 ? (row[iSizingComment] || '').trim() : '';
+    const requestedStartDate = iStartDate >= 0 ? (row[iStartDate] || '').trim() || null : null;
 
     let qaResources = iQAResources >= 0 && row[iQAResources] ? parseFloat(String(row[iQAResources]).replace(/,/g, '')) : NaN;
     if (Number.isNaN(qaResources) || qaResources < 0) {
@@ -254,6 +256,7 @@ export function rowsToProjects(rows) {
       totalResources60: devResources60,
       additionalResources,
       sizingComment,
+      requestedStartDate,
     });
   }
 

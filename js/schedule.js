@@ -16,7 +16,7 @@ import {
   CAPACITY_PCT_MAX,
 } from './config.js';
 import { logger } from './logger.js';
-import { getScheduleData, setScheduleData, getProjects, getFilters, setFilters } from './state.js';
+import { getScheduleData, setScheduleData, getProjects, getFilters, setFilters, setStartDateOverride, applyStartDateOverrides } from './state.js';
 import { filterByPriority, tagPriorityTiers } from './filters.js';
 import { prepareScheduleData } from './prepare-schedule.js';
 import { packWithCapacity, getScheduleEnd, getLongPoles } from './bin-packing.js';
@@ -448,14 +448,14 @@ function renderRecommendations(schedule, endDate, capacityPct, numFTEs, longPole
     parts.push(
       '<div class="rec-block">',
       '<strong>Or move release out</strong>',
-      ' Set target date to ' + escapeHtml(formatDate(latestEnd)) + ' so the current plan finishes by then.',
+      ' Set end date to ' + escapeHtml(formatDate(latestEnd)) + ' so the current plan finishes by then.',
       '</div>'
     );
   } else if (longPoles.length > 0) {
     parts.push(
       '<div class="rec-block">',
       '<strong>Long poles drive the timeline</strong>',
-      ' Schedule fits within target date. To shorten the schedule, add people to the long-pole projects above; spare capacity in earlier months could be shifted to them.',
+      ' Schedule fits within end date. To shorten the schedule, add people to the long-pole projects above; spare capacity in earlier months could be shifted to them.',
       '</div>'
     );
   } else {
@@ -477,6 +477,7 @@ function render() {
   let filtered = filterByPriority(projects, state.priority);
   detectResourceGroups(filtered);
   tagPriorityTiers(filtered);
+  applyStartDateOverrides(filtered);
 
   const ganttSection = getEl('ganttSection');
   const submitHint = getEl('submitHint');
@@ -535,6 +536,10 @@ function render() {
     deadlineDate: state.endDate,
     labelsContainer: getEl('ganttLabels'),
     tierBreaks,
+    onStartDateChange: (rowNumber, dateValue) => {
+      setStartDateOverride(rowNumber, dateValue || null);
+      render();
+    },
   });
 
   const effectiveEnd = timelineEnd && timelineEnd.getTime() > state.endDate.getTime() ? timelineEnd : state.endDate;

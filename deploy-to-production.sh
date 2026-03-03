@@ -177,6 +177,15 @@ main() {
         echo -e "${CYAN}▶ Entering project directory...${NC}"
         cd ${PROJECT_NAME}
         
+        # Free port so the new server can bind (kills only processes owned by deploy user)
+        echo -e "${CYAN}▶ Freeing port ${APP_PORT} (stop existing server)...${NC}"
+        set +e
+        fuser -k ${APP_PORT}/tcp 2>/dev/null
+        pids=\$(lsof -ti :${APP_PORT} 2>/dev/null)
+        [ -n "\$pids" ] && kill -9 \$pids 2>/dev/null
+        set -e
+        sleep 2
+        
         echo -e "${CYAN}▶ Starting production server...${NC}"
         echo ""
         sh manage-production.sh

@@ -25,6 +25,9 @@ export const SCHEDULE_STORAGE_KEY = 'ndb-committed-schedule';
 /** localStorage key for last-used schedule filters (commitment, priority, etc.). */
 export const FILTERS_STORAGE_KEY = 'ndb-projects-filters';
 
+/** localStorage key for user-overridden start dates (rowNumber → dateString). */
+export const START_DATE_OVERRIDES_KEY = 'ndb-start-date-overrides';
+
 /** Enable debug logging when true. Set via query param ?debug=1 or build. */
 export const DEBUG = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
 

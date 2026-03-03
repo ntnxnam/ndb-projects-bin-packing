@@ -66,6 +66,7 @@ function renderBottomUpTable(projectList, schedule, capacityPct = DEFAULT_CAPACI
         <th scope="col">Dev (people)</th>
         <th scope="col">Implied duration (effort÷people÷productivity)${capLabel}</th>
         <th scope="col">Blocked by</th>
+        <th scope="col">Requested start</th>
         <th scope="col">Scheduled start</th>
         <th scope="col">Scheduled end</th>
         <th scope="col">Schedule duration</th>
@@ -125,6 +126,7 @@ function renderBottomUpTable(projectList, schedule, capacityPct = DEFAULT_CAPACI
       <td>${formatNum(devR)}</td>
       <td>${realisticDuration != null ? realisticDuration + ' mo' : '—'}</td>
       <td>${escapeHtml(blockedBy)}</td>
+      <td>${escapeHtml(p.requestedStartDate || '—')}</td>
       <td>${escapeHtml(scheduledStart)}</td>
       <td>${escapeHtml(scheduledEnd)}</td>
       <td>${scheduledDuration != null ? scheduledDuration + ' mo' : '—'}</td>

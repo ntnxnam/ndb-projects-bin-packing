@@ -77,7 +77,7 @@ export async function generateExecReport(ctx) {
     `Headcount: ${numFTEs}`,
     `Capacity: ${capacityPct}%`,
     `Start: ${formatDate(startDate)}`,
-    `Target: ${formatDate(endDate)}`,
+    `End date: ${formatDate(endDate)}`,
     `Projects: ${projects.length}`,
   ].join('   |   ');
   doc.text(paramStr, margin + 10, y + 18);
@@ -110,11 +110,11 @@ export async function generateExecReport(ctx) {
   const targetMonths = monthsBetween(startDate, endDate);
   const overrun = timelineMonths > targetMonths;
   const cards = [
-    { label: 'Target',          value: `${targetMonths} mo`,  color: C.accent },
+    { label: 'End date',        value: `${targetMonths} mo`,  color: C.accent },
     { label: 'Scheduled',       value: `${timelineMonths} mo`, color: overrun ? C.red : C.green, sub: overrun ? `+${timelineMonths - targetMonths} mo overrun` : 'On track' },
     { label: 'Avg Utilization', value: `${avgUtil}%`,          color: avgUtil > 85 ? C.red : avgUtil > 70 ? C.amber : C.green },
     { label: 'Long Poles',      value: `${longPoles.length}`,  color: longPoles.length > 3 ? C.amber : C.green },
-    { label: 'Past Target',     value: `${pastDeadline.length}`, color: pastDeadline.length > 0 ? C.red : C.green },
+    { label: 'Past End Date',   value: `${pastDeadline.length}`, color: pastDeadline.length > 0 ? C.red : C.green },
   ];
   const cardW = (contentW - 24) / 5;
   const cardH = 52;
@@ -298,13 +298,13 @@ export async function generateExecReport(ctx) {
 
   yRight += 10;
 
-  /* ── Right column: Past Target Date ── */
-  drawSectionTitle(doc, `Past Target Date (${pastDeadline.length})`, colRight, yRight);
+  /* ── Right column: Past End Date ── */
+  drawSectionTitle(doc, `Past End Date (${pastDeadline.length})`, colRight, yRight);
   yRight += 14;
   if (pastDeadline.length === 0) {
     doc.setFontSize(8);
     doc.setTextColor(C.green);
-    doc.text('All projects finish within target -- no action needed.', colRight, yRight + 4);
+    doc.text('All projects finish within end date -- no action needed.', colRight, yRight + 4);
     yRight += 14;
   } else {
     yRight = drawProjectTable(doc, pastDeadline, colRight, yRight, halfW, endDate);
@@ -538,12 +538,12 @@ function buildRecommendations(schedule, endDate, capacityPct, numFTEs, longPoles
     }
     recs.push({
       color: C.heading,
-      text: `Or move target to ${formatDate(latestEnd)} to accommodate current plan.`,
+      text: `Or move end date to ${formatDate(latestEnd)} to accommodate current plan.`,
     });
   } else if (longPoles.length > 0) {
     recs.push({
       color: C.green,
-      text: 'Schedule fits within target date. To shorten, add people to long-pole projects or shift spare capacity earlier.',
+      text: 'Schedule fits within end date. To shorten, add people to long-pole projects or shift spare capacity earlier.',
     });
   } else {
     recs.push({

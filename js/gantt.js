@@ -14,6 +14,32 @@ function escapeHtmlLabel(s) {
   return div.innerHTML;
 }
 
+const MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+/**
+ * Normalize a date string (YYYY-MM-DD, YYYY-MM, "Jun 2026", etc.) to YYYY-MM-DD
+ * for <input type="date">.  Returns '' if unparseable.
+ */
+function normalizeToDateValue(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  const fullMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (fullMatch) return `${fullMatch[1]}-${String(fullMatch[2]).padStart(2, '0')}-${String(fullMatch[3]).padStart(2, '0')}`;
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})$/);
+  if (isoMatch) return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-01`;
+  const nameMatch = s.match(/^([A-Za-z]+)\s*(\d{4})$/);
+  if (nameMatch) {
+    const mi = MONTH_ABBR.indexOf(nameMatch[1].slice(0, 3).toLowerCase());
+    if (mi >= 0) return `${nameMatch[2]}-${String(mi + 1).padStart(2, '0')}-01`;
+  }
+  const serial = parseFloat(s);
+  if (!Number.isNaN(serial) && serial > 40000) {
+    const d = new Date(Math.round((serial - 25569) * 86400000));
+    if (!Number.isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return '';
+}
+
 /**
  * @param {HTMLElement} container
  * @param {Array<{ project, startDate, endDate }>} schedule - display order (e.g. capacity-flow order)
@@ -30,6 +56,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   const resolveDep = (depRow) => childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
   const headcount = options.capacity ?? 0;
   const capacityPct = options.capacityPct ?? 100;
+  const onStartDateChange = options.onStartDateChange ?? null;
   const pctFactor = capacityPct > 0 && capacityPct <= 100 ? capacityPct / 100 : 1;
   const rangeStart = timeline.startDate.getTime();
   const rangeEnd = timeline.endDate.getTime();
@@ -235,19 +262,24 @@ export function renderGantt(container, schedule, timeline, options = {}) {
         const currentPeople = Math.ceil(people);
         const extraPeople = neededPeople - currentPeople;
         if (extraPeople > 0) {
-          deadlineNote = `\n⚠️ Extends past target date — to finish on time, increase to ${neededPeople} people (+${extraPeople}) or move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+          deadlineNote = `\n⚠️ Extends past end date — to finish on time, increase to ${neededPeople} people (+${extraPeople}) or move end date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
         } else {
-          deadlineNote = `\n⚠️ Extends past target date — move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+          deadlineNote = `\n⚠️ Extends past end date — move end date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
         }
       } else {
-        deadlineNote = `\n⚠️ Extends past target date — move target date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+        deadlineNote = `\n⚠️ Extends past end date — move end date to ${endDate.toLocaleString('default', { month: 'short', year: 'numeric' })}`;
       }
     }
     const noDurationNote = entry.missingDurationData ? `\n⚠️ Total Months Needed for 1 person by Dev (Everything from start to finish) / Dev Resources — data missing; bar greyed out` : '';
+    const csvStart = project._csvStartDate ?? null;
+    const isOverridden = project.requestedStartDate && csvStart !== project.requestedStartDate;
+    const reqStartNote = project.requestedStartDate
+      ? `\n📅 Requested start: ${project.requestedStartDate}` + (isOverridden && csvStart ? ` (CSV: ${csvStart})` : isOverridden ? ' (user override)' : '')
+      : '';
     const titleLine = isPoolContainer
       ? `${bucketName} (pool)\n${people.toFixed(0)} people · ${project._pool?.totalPersonMonthsNum ?? '?'} person-months`
       : `${slNoPrefix}${project.summary || '—'}\n${project.feat || ''} · ${project.durationMonths ?? '—'} mo · ${isChild ? '0 (shared)' : people.toFixed(1)} people${!isChild && people <= 1 ? ' (no parallelization)' : !isChild ? ' (parallelization chosen)' : ''}`;
-    bar.title = `${titleLine}${dependsOnLine}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${poolOrderNote}${deadlineNote}${noDurationNote}`;
+    bar.title = `${titleLine}${reqStartNote}${dependsOnLine}${whyLine}${rotationNote}${inProgressNote}${groupNote}${parentNote}${poolOrderNote}${deadlineNote}${noDurationNote}`;
     bar.dataset.fte = effectiveFte.toFixed(1);
     if (!isPoolContainer && project.rowNumber != null) bar.dataset.row = String(project.rowNumber);
 
@@ -256,7 +288,11 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const slNoDisplay = isPoolContainer ? '' : (project.rowNumber != null ? String(project.rowNumber) : '—');
     const remaining = remainingByEntry.get(entry) ?? null;
     const remainingDisplay = remaining != null ? String(remaining) : '';
-    rowData.push({ top: topOffset, height, colSlNo: slNoDisplay, colB: bucketNameForColB, colC: projectName, colPeople: remainingDisplay, isGroup: isPoolContainer });
+    const reqStartDisplay = project.requestedStartDate || '';
+    const rowNum = project.rowNumber ?? null;
+    const csvStartDate = project._csvStartDate ?? null;
+    const startIsOverridden = !!(project.requestedStartDate && csvStartDate !== project.requestedStartDate);
+    rowData.push({ top: topOffset, height, colSlNo: slNoDisplay, colB: bucketNameForColB, colC: projectName, colReqStart: reqStartDisplay, csvStartDate, startIsOverridden, colPeople: remainingDisplay, isGroup: isPoolContainer, rowNumber: rowNum });
 
     const label = document.createElement('span');
     label.className = 'gantt-bar-label';
@@ -424,7 +460,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
       labelsContainer.style.display = '';
     const header = document.createElement('div');
     header.className = 'gantt-labels-header';
-    header.innerHTML = '<span class="gantt-col-sl">Sl No</span><span class="gantt-col-b">FEAT (group)</span><span class="gantt-col-c">Project</span><span class="gantt-col-available">Remaining</span>';
+    header.innerHTML = '<span class="gantt-col-sl">Sl No</span><span class="gantt-col-b">FEAT (group)</span><span class="gantt-col-c">Project</span><span class="gantt-col-start">Req. Start</span><span class="gantt-col-available">Remaining</span>';
     labelsContainer.appendChild(header);
     const rowsWrap = document.createElement('div');
     rowsWrap.className = 'gantt-labels-rows';
@@ -444,6 +480,40 @@ export function renderGantt(container, schedule, timeline, options = {}) {
         const slNo = row.colSlNo != null ? String(row.colSlNo) : '';
         const ppl = row.colPeople != null ? String(row.colPeople) : '';
         rowEl.innerHTML = `<span class="gantt-col-sl">${escapeHtmlLabel(slNo)}</span><span class="gantt-col-b">${escapeHtmlLabel(row.colB)}</span><span class="gantt-col-c">${escapeHtmlLabel(row.colC)}</span><span class="gantt-col-available">${escapeHtmlLabel(ppl)}</span>`;
+
+        const startCell = document.createElement('span');
+        startCell.className = 'gantt-col-start';
+        const startInput = document.createElement('input');
+        startInput.type = 'date';
+        startInput.className = 'gantt-start-input' + (row.startIsOverridden ? ' gantt-start-input--overridden' : '');
+        startInput.value = normalizeToDateValue(row.colReqStart);
+        if (row.startIsOverridden) {
+          const csvLabel = row.csvStartDate || 'none';
+          startInput.title = `User override (CSV: ${csvLabel}) — clear to restore default`;
+        } else if (row.colReqStart) {
+          startInput.title = `From CSV: ${row.colReqStart}`;
+        } else {
+          startInput.title = 'Set requested start date';
+        }
+        if (onStartDateChange && row.rowNumber != null) {
+          startInput.addEventListener('change', () => {
+            onStartDateChange(row.rowNumber, startInput.value || null);
+          });
+        }
+        startCell.appendChild(startInput);
+        if (row.startIsOverridden && onStartDateChange && row.rowNumber != null) {
+          const resetBtn = document.createElement('button');
+          resetBtn.type = 'button';
+          resetBtn.className = 'gantt-start-reset';
+          resetBtn.textContent = '×';
+          resetBtn.title = 'Restore CSV default' + (row.csvStartDate ? ` (${row.csvStartDate})` : ' (none)');
+          resetBtn.addEventListener('click', () => {
+            onStartDateChange(row.rowNumber, null);
+          });
+          startCell.appendChild(resetBtn);
+        }
+        const availableSpan = rowEl.querySelector('.gantt-col-available');
+        rowEl.insertBefore(startCell, availableSpan);
       }
       rowsWrap.appendChild(rowEl);
     }
@@ -490,7 +560,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
   container.appendChild(grid);
   container.appendChild(track);
 
-  /* Deadline marker: vertical line at target end date */
+  /* Deadline marker: vertical line at end date */
   const deadlineDate = options.deadlineDate;
   if (deadlineDate && deadlineDate.getTime() > rangeStart && deadlineDate.getTime() < rangeEnd) {
     const deadlinePct = ((deadlineDate.getTime() - rangeStart) / totalMs) * 100;

@@ -5,7 +5,7 @@
  */
 
 import { logger } from './logger.js';
-import { UPLOAD_STORAGE_KEY, SCHEDULE_STORAGE_KEY, FILTERS_STORAGE_KEY } from './config.js';
+import { UPLOAD_STORAGE_KEY, SCHEDULE_STORAGE_KEY, FILTERS_STORAGE_KEY, START_DATE_OVERRIDES_KEY } from './config.js';
 
 /**
  * Load projects from localStorage (previously uploaded CSV/JSON).
@@ -110,5 +110,62 @@ export function setFilters(filters) {
     logger.debug('state.setFilters: saved', filters);
   } catch (e) {
     logger.warn('state.setFilters: failed to persist', e);
+  }
+}
+
+/**
+ * Load user-overridden start dates.
+ * @returns {Object<string, string>} Map of rowNumber (as string key) → date string.
+ */
+export function getStartDateOverrides() {
+  try {
+    const raw = localStorage.getItem(START_DATE_OVERRIDES_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch (e) {
+    logger.warn('state.getStartDateOverrides: invalid stored data', e);
+    return {};
+  }
+}
+
+/**
+ * Set a user-overridden start date for a project.
+ * @param {number} rowNumber
+ * @param {string} dateStr - YYYY-MM-DD (or null to clear)
+ */
+export function setStartDateOverride(rowNumber, dateStr) {
+  try {
+    const overrides = getStartDateOverrides();
+    if (dateStr) {
+      overrides[String(rowNumber)] = dateStr;
+    } else {
+      delete overrides[String(rowNumber)];
+    }
+    localStorage.setItem(START_DATE_OVERRIDES_KEY, JSON.stringify(overrides));
+    logger.debug('state.setStartDateOverride:', rowNumber, dateStr);
+  } catch (e) {
+    logger.warn('state.setStartDateOverride: failed to persist', e);
+  }
+}
+
+/**
+ * Apply start-date overrides to a projects array (in-place).
+ * Stashes the CSV original in `_csvStartDate` before overwriting.
+ * @param {Array<object>} projects
+ */
+export function applyStartDateOverrides(projects) {
+  const overrides = getStartDateOverrides();
+  for (const p of projects) {
+    if (p.rowNumber == null) continue;
+    const key = String(p.rowNumber);
+    if (!p.hasOwnProperty('_csvStartDate')) {
+      p._csvStartDate = p.requestedStartDate ?? null;
+    }
+    if (key in overrides) {
+      p.requestedStartDate = overrides[key];
+    } else {
+      p.requestedStartDate = p._csvStartDate;
+    }
   }
 }
