@@ -317,7 +317,8 @@ export function renderGantt(container, schedule, timeline, options = {}) {
     const totalPersonMonths = project.totalPersonMonthsNum ?? null;
     const csvTotalPersonMonths = project._csvTotalPersonMonths ?? totalPersonMonths;
     const durationIsOverridden = totalPersonMonths !== csvTotalPersonMonths;
-    rowData.push({ top: topOffset, height, colSlNo: slNoDisplay, colB: bucketNameForColB, colC: projectName, colReqStart: reqStartDisplay, csvStartDate, startIsOverridden, colPeople: remainingDisplay, isGroup: isPoolContainer, rowNumber: rowNum, fundFirst, completedPct: completedPctVal, csvCompletedPct, pctIsOverridden, totalResources: totalRes, csvTotalResources, fteIsOverridden, totalPersonMonths, csvTotalPersonMonths, durationIsOverridden });
+    const displayTier = entry._displayTier ?? 1;
+    rowData.push({ top: topOffset, height, colSlNo: slNoDisplay, colB: bucketNameForColB, colC: projectName, colReqStart: reqStartDisplay, csvStartDate, startIsOverridden, colPeople: remainingDisplay, isGroup: isPoolContainer, rowNumber: rowNum, fundFirst, completedPct: completedPctVal, csvCompletedPct, pctIsOverridden, totalResources: totalRes, csvTotalResources, fteIsOverridden, totalPersonMonths, csvTotalPersonMonths, durationIsOverridden, displayTier });
 
     const label = document.createElement('span');
     label.className = 'gantt-bar-label';
@@ -507,7 +508,7 @@ export function renderGantt(container, schedule, timeline, options = {}) {
         rowEl.innerHTML = `<span class="gantt-col-ff"></span><span class="gantt-col-b">${escapeHtmlLabel(row.colB)}</span><span class="gantt-col-c">${escapeHtmlLabel(projectLabel)}</span><span class="gantt-col-available">${escapeHtmlLabel(ppl)}</span>`;
 
         const ffCell = rowEl.querySelector('.gantt-col-ff');
-        if (ffCell && row.rowNumber != null && !row.isGroup) {
+        if (ffCell && row.rowNumber != null && !row.isGroup && (row.displayTier ?? 1) <= 1) {
           const cb = document.createElement('input');
           cb.type = 'checkbox';
           cb.className = 'gantt-ff-checkbox';

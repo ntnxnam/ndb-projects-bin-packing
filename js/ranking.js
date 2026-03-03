@@ -185,7 +185,7 @@ export function orderScheduleByBlockersFirst(schedule, dependentsByProject) {
     return endA - endB;
   });
 
-  const tierLabels = ['In Progress', 'Ready to Start', 'Waiting on Dependencies'];
+  const tierLabels = ['In Progress', 'Ready to Start', 'Deferred Start', 'Waiting on Dependencies'];
   const flatSchedule = [];
   const tierBreaks = [];
   let lastTier = -1;
@@ -212,7 +212,7 @@ export function orderScheduleByBlockersFirst(schedule, dependentsByProject) {
  */
 export function computeTierBreaks(schedule) {
   if (!schedule?.length) return [];
-  const tierLabels = ['In Progress', 'Ready to Start', 'Waiting on Dependencies'];
+  const tierLabels = ['In Progress', 'Ready to Start', 'Deferred Start', 'Waiting on Dependencies'];
   const breaks = [];
   let lastTier = -1;
   for (let i = 0; i < schedule.length; i++) {

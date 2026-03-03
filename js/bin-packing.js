@@ -146,22 +146,42 @@ export function getDependentsCounts(projects) {
  *
  * Resource-group children inherit their parent's tier.
  */
-export function assignDisplayTiers(projects) {
+export function assignDisplayTiers(projects, timelineStart) {
   const list = projects || [];
   const byRow = new Map(list.map(p => [p.rowNumber, p]));
   const childToParent = buildChildToParentMap(list);
+  const tsMs = timelineStart ? new Date(timelineStart).getTime() : 0;
+
   for (const p of list) {
     if (p.isResourceGroupChild) continue;
     if (p.inProgress) { p._displayTier = 0; continue; }
-    const deps = (p.dependencyRowNumbers || []).filter(d => d !== p.rowNumber);
-    if (deps.length === 0) { p._displayTier = 1; continue; }
-    let waitingOnNonIP = false;
-    for (const depRow of deps) {
-      const resolved = childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
-      const dep = byRow.get(resolved);
-      if (!dep || !dep.inProgress) { waitingOnNonIP = true; break; }
+
+    /* Check if this project has a requested start date after the timeline start */
+    let isDeferred = false;
+    if (p.requestedStartDate && tsMs > 0) {
+      const parsed = parseRequestedStartDate(p.requestedStartDate, new Date(timelineStart));
+      if (parsed && parsed.getTime() > tsMs) {
+        isDeferred = true;
+      }
     }
-    p._displayTier = waitingOnNonIP ? 2 : 1;
+
+    const deps = (p.dependencyRowNumbers || []).filter(d => d !== p.rowNumber);
+    let waitingOnNonIP = false;
+    if (deps.length > 0) {
+      for (const depRow of deps) {
+        const resolved = childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
+        const dep = byRow.get(resolved);
+        if (!dep || !dep.inProgress) { waitingOnNonIP = true; break; }
+      }
+    }
+
+    if (waitingOnNonIP) {
+      p._displayTier = 3;
+    } else if (isDeferred) {
+      p._displayTier = 2;
+    } else {
+      p._displayTier = 1;
+    }
   }
   for (const p of list) {
     if (!p.isResourceGroupChild) continue;
@@ -175,9 +195,9 @@ export function assignDisplayTiers(projects) {
  * rank by: (0) display tier, (1) fund-first, (2) priority tier, (3) blocker count, (4–6) sub-blocker types, (7) duration, (8) row number.
  * Resource-group children are placed immediately after their parent (they don't independently consume capacity).
  */
-export function orderByDependencyAndSize(projects) {
+export function orderByDependencyAndSize(projects, timelineStart) {
   const list = projects || [];
-  assignDisplayTiers(list);
+  assignDisplayTiers(list, timelineStart);
   const childToParent = buildChildToParentMap(list);
   const mainProjects = list.filter(p => !p.isResourceGroupChild);
   const childrenByParent = new Map();
@@ -192,9 +212,9 @@ export function orderByDependencyAndSize(projects) {
   const { devBlockerDependentsCount, relBlockerDependentsCount, plainDependentsCount } = getDependentsCounts(list);
 
   const rankCompare = (a, b) => {
-    /* 0. Display tier: In Progress (0) → Ready to Start (1) → Waiting (2) */
-    const dtA = a._displayTier ?? 2;
-    const dtB = b._displayTier ?? 2;
+    /* 0. Display tier: In Progress (0) → Ready (1) → Deferred (2) → Waiting (3) */
+    const dtA = a._displayTier ?? 3;
+    const dtB = b._displayTier ?? 3;
     if (dtA !== dtB) return dtA - dtB;
 
     /* 1. Fund First: user-pinned projects always schedule before others */
@@ -347,7 +367,7 @@ function topoSortSubProjects(subProjects, siblingRows) {
  * @param {number} [capacityPct] - Capacity per FTE (0–100). When set, duration = totalPersonMonths / (devResources × capacityPct/100).
  */
 export function packWithCapacity(projects, startDate, endDate, capacityFTE, capacityPct) {
-  const sorted = orderByDependencyAndSize(projects);
+  const sorted = orderByDependencyAndSize(projects, startDate);
   /* Bar width = remaining person-months ÷ (dev resources × capacity %). Single formula for all. */
   const durationFor = (p) => remainingDurationMonths(p, capacityPct);
   const childToParent = buildChildToParentMap(sorted);
