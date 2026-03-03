@@ -4,11 +4,11 @@
  * @module ranking
  */
 
-import { orderByDependencyAndSize, getDependentsCounts } from './bin-packing.js';
+import { orderByDependencyAndSize, getDependentsCounts, assignDisplayTiers } from './bin-packing.js';
 import { logger } from './logger.js';
 
 // Re-export for consumers that want a single "ranking" entry point.
-export { orderByDependencyAndSize, getDependentsCounts };
+export { orderByDependencyAndSize, getDependentsCounts, assignDisplayTiers };
 
 /**
  * Map each project rowNumber to lists of dependents: who lists this project as dev-blocker, rel-blocker, or plain dependency.
@@ -202,4 +202,28 @@ export function orderScheduleByBlockersFirst(schedule, dependentsByProject) {
 
   logger.debug('ranking: 3-tier display —', tierBreaks.map(t => `${t.label} @${t.index}`).join(', '));
   return { schedule: flatSchedule, tierBreaks };
+}
+
+/**
+ * Scan an already-ordered schedule and return tier break markers
+ * where _displayTier transitions. Does NOT re-sort.
+ * @param {Array<object>} schedule - Packed schedule entries (already in packing order).
+ * @returns {Array<{ label: string, index: number }>}
+ */
+export function computeTierBreaks(schedule) {
+  if (!schedule?.length) return [];
+  const tierLabels = ['In Progress', 'Ready to Start', 'Waiting on Dependencies'];
+  const breaks = [];
+  let lastTier = -1;
+  for (let i = 0; i < schedule.length; i++) {
+    const e = schedule[i];
+    if (e.isResourceGroupChild) continue;
+    const tier = e._displayTier ?? 1;
+    if (tier !== lastTier) {
+      breaks.push({ label: tierLabels[tier] ?? `Tier ${tier}`, index: i });
+      lastTier = tier;
+    }
+  }
+  logger.debug('ranking.computeTierBreaks:', breaks.map(t => `${t.label} @${t.index}`).join(', '));
+  return breaks;
 }

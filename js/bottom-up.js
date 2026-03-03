@@ -14,6 +14,7 @@ import {
 import { getScheduleData, getFilters, setFilters } from './state.js';
 import { filterByPriority, tagPriorityTiers } from './filters.js';
 import { orderByDependencyAndSize, packWithCapacity, getScheduleEnd } from './bin-packing.js';
+import { getDependentsByProject, computeTierBreaks } from './ranking.js';
 import { renderGantt, renderTimelineAxis } from './gantt.js';
 import { totalResources, SIZING_MONTHS, effectiveDurationMonths } from './sizing.js';
 import { detectResourceGroups } from './resource-groups.js';
@@ -200,9 +201,9 @@ function runRender() {
       filtered.forEach(p => {
         if (p.isResourceGroupChild && p.resourceGroupParentRow != null) childToParent.set(p.rowNumber, p.resourceGroupParentRow);
       });
-      const { schedule: displaySchedule, tierBreaks } = orderScheduleByBlockersFirst(schedule, dependentsByProject);
+      const tierBreaks = computeTierBreaks(schedule);
       if (axisEl) renderTimelineAxis(axisEl, timeline, {});
-      if (chartEl) renderGantt(chartEl, displaySchedule, timeline, {
+      if (chartEl) renderGantt(chartEl, schedule, timeline, {
         dependentsByProject,
         childToParent,
         capacity,

@@ -32,6 +32,30 @@ function parseRequestedStartDate(raw, timelineStart) {
   const isoMatch = s.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
   if (isoMatch) return new Date(+isoMatch[1], +isoMatch[2] - 1, 1);
 
+  /* D/Mon/YY or D/Mon/YYYY — month as 3-letter abbreviation, 2- or 4-digit year */
+  const abbrevMatch = s.match(/^(\d{1,2})\/([A-Za-z]{3,})\/(\d{2,4})$/);
+  if (abbrevMatch) {
+    const day = +abbrevMatch[1];
+    const mi = MONTH_NAMES.indexOf(abbrevMatch[2].slice(0, 3).toLowerCase());
+    let y = +abbrevMatch[3];
+    if (y < 100) y += 2000;
+    if (mi >= 0 && day >= 1 && day <= 31) return new Date(y, mi, 1);
+  }
+
+  /* Flexible: M/D/YYYY or D/M/YYYY — auto-detect by checking which part > 12 */
+  const slashMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (slashMatch) {
+    const a = +slashMatch[1], b = +slashMatch[2];
+    let y = +slashMatch[3];
+    if (y < 100) y += 2000;
+    let month, day;
+    if (a > 12 && b <= 12)      { day = a; month = b; }
+    else if (b > 12 && a <= 12) { month = a; day = b; }
+    else                        { month = a; day = b; } /* ambiguous → M/D/YYYY */
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31)
+      return new Date(y, month - 1, 1);
+  }
+
   const monthNameMatch = s.match(/^([A-Za-z]+)\s*(\d{4})$/);
   if (monthNameMatch) {
     const mi = MONTH_NAMES.indexOf(monthNameMatch[1].slice(0, 3).toLowerCase());
@@ -115,12 +139,45 @@ export function getDependentsCounts(projects) {
 }
 
 /**
+ * Assign display tiers to projects based on their properties (before packing).
+ *   0 = In Progress
+ *   1 = Ready to Start (no deps, or all deps are on in-progress projects)
+ *   2 = Waiting on Dependencies (has dep on a non-in-progress project)
+ *
+ * Resource-group children inherit their parent's tier.
+ */
+export function assignDisplayTiers(projects) {
+  const list = projects || [];
+  const byRow = new Map(list.map(p => [p.rowNumber, p]));
+  const childToParent = buildChildToParentMap(list);
+  for (const p of list) {
+    if (p.isResourceGroupChild) continue;
+    if (p.inProgress) { p._displayTier = 0; continue; }
+    const deps = (p.dependencyRowNumbers || []).filter(d => d !== p.rowNumber);
+    if (deps.length === 0) { p._displayTier = 1; continue; }
+    let waitingOnNonIP = false;
+    for (const depRow of deps) {
+      const resolved = childToParent.has(depRow) ? childToParent.get(depRow) : depRow;
+      const dep = byRow.get(resolved);
+      if (!dep || !dep.inProgress) { waitingOnNonIP = true; break; }
+    }
+    p._displayTier = waitingOnNonIP ? 2 : 1;
+  }
+  for (const p of list) {
+    if (!p.isResourceGroupChild) continue;
+    const parent = byRow.get(p.resourceGroupParentRow);
+    p._displayTier = parent?._displayTier ?? 1;
+  }
+}
+
+/**
  * Order: respect dependencies (all deps scheduled before a dependent). Among ready projects,
- * rank by: (1) in-progress, (2) priority tier, (3) total projects I block (dev+rel+plain; more first), (4) dev-blocker count, (5) rel-blocker count, (6) plain deps, (7) duration, (8) row number.
+ * rank by: (0) display tier, (1) fund-first, (2) priority tier, (3) blocker count, (4–6) sub-blocker types, (7) duration, (8) row number.
  * Resource-group children are placed immediately after their parent (they don't independently consume capacity).
  */
 export function orderByDependencyAndSize(projects) {
   const list = projects || [];
+  assignDisplayTiers(list);
   const childToParent = buildChildToParentMap(list);
   const mainProjects = list.filter(p => !p.isResourceGroupChild);
   const childrenByParent = new Map();
@@ -135,10 +192,15 @@ export function orderByDependencyAndSize(projects) {
   const { devBlockerDependentsCount, relBlockerDependentsCount, plainDependentsCount } = getDependentsCounts(list);
 
   const rankCompare = (a, b) => {
-    /* 1. In-progress first */
-    const ipA = a.inProgress ? 1 : 0;
-    const ipB = b.inProgress ? 1 : 0;
-    if (ipB !== ipA) return ipB - ipA;
+    /* 0. Display tier: In Progress (0) → Ready to Start (1) → Waiting (2) */
+    const dtA = a._displayTier ?? 2;
+    const dtB = b._displayTier ?? 2;
+    if (dtA !== dtB) return dtA - dtB;
+
+    /* 1. Fund First: user-pinned projects always schedule before others */
+    const ffA = a._fundFirst ? 1 : 0;
+    const ffB = b._fundFirst ? 1 : 0;
+    if (ffB !== ffA) return ffB - ffA;
 
     /* 2. Priority tier: 1=P0+Committed, 2=P1 Committed, 3=P0 Approved, 4=P1 Approved, 5=rest */
     const tierA = a._tier ?? 5;
@@ -507,12 +569,15 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     const startDateObj = dateFromMonthIndex(startMonth);
     const endDateObj = dateFromMonthIndex(startMonth + months);
 
+    const remainingBefore = capacityFTE - (usage.get(startMonth) ?? 0);
     addUsage(startMonth, months, fte);
     const entry = {
       project: p, startDate: startDateObj, endDate: endDateObj, fte,
       rotated: false, rotatedFteCount: 0, inProgress: isInProgress,
       releasedFromIndex: undefined, missingDurationData: !!missingDurationData,
       isPoolContainer: !!isPoolParent,
+      _displayTier: p._displayTier ?? 1,
+      _remainingAtPlacement: capacityFTE > 0 ? Math.max(0, remainingBefore) : null,
     };
     result.push(entry);
     if (p.rowNumber != null) {
@@ -546,6 +611,8 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
         poolDependsOn: sub.poolDependsOn,
         _poolOrder: i + 1,
         missingDurationData: false,
+        _displayTier: entry._displayTier,
+        _remainingAtPlacement: null,
       };
       newResult.push(childEntry);
       if (sub.project.rowNumber != null) {

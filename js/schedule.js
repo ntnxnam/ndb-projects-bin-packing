@@ -16,13 +16,13 @@ import {
   CAPACITY_PCT_MAX,
 } from './config.js';
 import { logger } from './logger.js';
-import { getScheduleData, setScheduleData, getProjects, getFilters, setFilters, setStartDateOverride, applyStartDateOverrides } from './state.js';
+import { getScheduleData, setScheduleData, getProjects, getFilters, setFilters, setStartDateOverride, applyStartDateOverrides, setFundFirstOverride, applyFundFirstOverrides, setCompletedPctOverride, applyCompletedPctOverrides, setFteOverride, applyFteOverrides, setDurationOverride, applyDurationOverrides } from './state.js';
 import { filterByPriority, tagPriorityTiers } from './filters.js';
 import { prepareScheduleData } from './prepare-schedule.js';
 import { packWithCapacity, getScheduleEnd, getLongPoles } from './bin-packing.js';
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-import { orderByDependencyAndSize, getDependentsByProject, orderScheduleByBlockersFirst } from './ranking.js';
+import { orderByDependencyAndSize, getDependentsByProject, computeTierBreaks } from './ranking.js';
 import { renderGantt, renderTimelineAxis } from './gantt.js';
 import { totalResources } from './sizing.js';
 import { detectResourceGroups } from './resource-groups.js';
@@ -34,6 +34,9 @@ let projects = [];
 /** Last schedule context for export. */
 let lastScheduleCtx = null;
 
+/** Guard against re-entrant renders from date-picker change events during DOM rebuild. */
+let renderScheduled = false;
+
 /**
  * Parse YYYY-MM-DD string to Date at start of day.
  * @param {string} str
@@ -42,6 +45,54 @@ let lastScheduleCtx = null;
 function parseDate(str) {
   const [y, m, d] = str.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+const PROJECT_DATE_MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+/**
+ * Parse a project requestedStartDate string into a Date.
+ * Handles YYYY-MM-DD, YYYY-MM, "Jun 2026", Excel serial.
+ * @returns {Date|null}
+ */
+function parseProjectDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/);
+  if (isoMatch) return new Date(+isoMatch[1], +isoMatch[2] - 1, +(isoMatch[3] || 1));
+  /* D/Mon/YY or D/Mon/YYYY — month as 3-letter abbreviation */
+  const MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const abbrevMatch = s.match(/^(\d{1,2})\/([A-Za-z]{3,})\/(\d{2,4})$/);
+  if (abbrevMatch) {
+    const day = +abbrevMatch[1];
+    const mi = MONTH_ABBR.indexOf(abbrevMatch[2].slice(0, 3).toLowerCase());
+    let y = +abbrevMatch[3];
+    if (y < 100) y += 2000;
+    if (mi >= 0 && day >= 1 && day <= 31) return new Date(y, mi, day);
+  }
+  /* Flexible: M/D/YYYY or D/M/YYYY — auto-detect by checking which part > 12 */
+  const slashMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (slashMatch) {
+    const a = +slashMatch[1], b = +slashMatch[2];
+    let y = +slashMatch[3];
+    if (y < 100) y += 2000;
+    let month, day;
+    if (a > 12 && b <= 12)      { day = a; month = b; }
+    else if (b > 12 && a <= 12) { month = a; day = b; }
+    else                        { month = a; day = b; } /* ambiguous → M/D/YYYY */
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31)
+      return new Date(y, month - 1, day);
+  }
+  const nameMatch = s.match(/^([A-Za-z]+)\s*(\d{4})$/);
+  if (nameMatch) {
+    const mi = PROJECT_DATE_MONTHS.indexOf(nameMatch[1].slice(0, 3).toLowerCase());
+    if (mi >= 0) return new Date(+nameMatch[2], mi, 1);
+  }
+  const serial = parseFloat(s);
+  if (!Number.isNaN(serial) && serial > 40000) {
+    const d = new Date(Math.round((serial - 25569) * 86400000));
+    if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+  return null;
 }
 
 /**
@@ -478,6 +529,30 @@ function render() {
   detectResourceGroups(filtered);
   tagPriorityTiers(filtered);
   applyStartDateOverrides(filtered);
+  applyFundFirstOverrides(filtered);
+  applyCompletedPctOverrides(filtered);
+  applyFteOverrides(filtered);
+  applyDurationOverrides(filtered);
+
+  /* Auto-adjust timeline start if any project has a requestedStartDate earlier than the UI start date */
+  let effectiveStartDate = state.startDate;
+  for (const p of filtered) {
+    if (!p.requestedStartDate) continue;
+    const parsed = parseProjectDate(p.requestedStartDate);
+    if (parsed && parsed.getTime() < effectiveStartDate.getTime()) {
+      effectiveStartDate = parsed;
+    }
+  }
+  if (effectiveStartDate.getTime() < state.startDate.getTime()) {
+    const el = getEl('startDate');
+    if (el) {
+      const y = effectiveStartDate.getFullYear();
+      const m = String(effectiveStartDate.getMonth() + 1).padStart(2, '0');
+      const d = String(effectiveStartDate.getDate()).padStart(2, '0');
+      el.value = `${y}-${m}-${d}`;
+    }
+    state.startDate = effectiveStartDate;
+  }
 
   const ganttSection = getEl('ganttSection');
   const submitHint = getEl('submitHint');
@@ -522,12 +597,12 @@ function render() {
   filtered.forEach(p => {
     if (p.isResourceGroupChild && p.resourceGroupParentRow != null) childToParent.set(p.rowNumber, p.resourceGroupParentRow);
   });
-  const { schedule: displaySchedule, tierBreaks } = orderScheduleByBlockersFirst(schedule, dependentsByProject);
+  const tierBreaks = computeTierBreaks(schedule);
 
   const ax = getEl('ganttAxis');
   const chart = getEl('ganttChart');
   if (ax) renderTimelineAxis(ax, timeline, { visibleRange });
-  if (chart) renderGantt(chart, displaySchedule, timeline, {
+  if (chart) renderGantt(chart, schedule, timeline, {
     dependentsByProject,
     childToParent,
     capacity: state.numFTEs,
@@ -538,7 +613,53 @@ function render() {
     tierBreaks,
     onStartDateChange: (rowNumber, dateValue) => {
       setStartDateOverride(rowNumber, dateValue || null);
-      render();
+      if (!renderScheduled) {
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          render();
+        });
+      }
+    },
+    onFundFirstChange: (rowNumber, enabled) => {
+      setFundFirstOverride(rowNumber, enabled);
+      if (!renderScheduled) {
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          render();
+        });
+      }
+    },
+    onCompletedPctChange: (rowNumber, pct) => {
+      setCompletedPctOverride(rowNumber, pct);
+      if (!renderScheduled) {
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          render();
+        });
+      }
+    },
+    onFteChange: (rowNumber, fte) => {
+      setFteOverride(rowNumber, fte);
+      if (!renderScheduled) {
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          render();
+        });
+      }
+    },
+    onDurationChange: (rowNumber, months) => {
+      setDurationOverride(rowNumber, months);
+      if (!renderScheduled) {
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          render();
+        });
+      }
     },
   });
 
@@ -694,6 +815,15 @@ function applyStoredFilters() {
 
 // --- Init ---
 function init() {
+  const numEl = getEl('numFTEs');
+  const capEl = getEl('capacityPerFte');
+  const startEl = getEl('startDate');
+  const endEl = getEl('endDate');
+  if (numEl && !numEl.value) numEl.value = DEFAULT_NUM_FTES;
+  if (capEl && !capEl.value) capEl.value = DEFAULT_CAPACITY_PCT;
+  if (startEl && !startEl.value) startEl.value = DEFAULT_START;
+  if (endEl && !endEl.value) endEl.value = DEFAULT_END;
+
   bindControls();
   applyStoredFilters();
   loadProjects();

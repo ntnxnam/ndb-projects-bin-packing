@@ -22,19 +22,19 @@
       <div class="controls">
         <div class="control-group">
           <label for="numFTEs">Number of FTEs</label>
-          <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" value="85" title="Headcount (people)" placeholder="e.g. 100">
+          <input type="text" id="numFTEs" inputmode="numeric" pattern="[0-9]*" title="Headcount (people)" placeholder="e.g. 100">
         </div>
         <div class="control-group">
           <label for="capacityPerFte">Capacity per FTE (%)</label>
-          <input type="text" id="capacityPerFte" inputmode="decimal" value="60" title="60 = 60%" placeholder="e.g. 60">
+          <input type="text" id="capacityPerFte" inputmode="decimal" title="60 = 60%" placeholder="e.g. 60">
         </div>
         <div class="control-group">
           <label for="startDate">Start date</label>
-          <input type="date" id="startDate" value="2026-04-01">
+          <input type="date" id="startDate">
         </div>
         <div class="control-group">
           <label for="endDate">End date (viewport &amp; deadline)</label>
-          <input type="date" id="endDate" value="2027-01-30" title="Initial view and end date; scroll right for projects beyond">
+          <input type="date" id="endDate" title="Initial view and end date; scroll right for projects beyond">
         </div>
         <!-- Priority filter: hidden until P1 projects are added to committed data -->
         <div class="control-group" id="priorityFilterGroup" style="display:none">
@@ -58,7 +58,7 @@
       <div id="ganttSection" class="gantt-section" style="display: none;">
         <h2 id="ganttTitle">Schedule</h2>
         <div class="gantt-wrapper">
-          <div id="ganttLabels" class="gantt-labels" aria-label="Sl No, Column B (group), Column C (project), Requested Start, Available (pool)"></div>
+          <div id="ganttLabels" class="gantt-labels" aria-label="Fund First, FEAT (group), Project, Requested Start, Done%, People, 1p Months, Remaining"></div>
           <div class="gantt-chart-scroll">
             <div id="ganttAxis" class="gantt-axis"></div>
             <div id="ganttChart"></div>

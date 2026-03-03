@@ -5,7 +5,7 @@
 
 import { getEl, escapeHtml, formatNum } from './utils.js';
 import { logger } from './logger.js';
-import { getProjects, setProjects, setScheduleData } from './state.js';
+import { getProjects, setProjects, setScheduleData, clearAllOverrides } from './state.js';
 import { csvToProjects, rowsToProjects, detectResourceGroups } from './csv-parser.js';
 import { parseXlsxToRows } from './xlsx-parser.js';
 import { orderByDependencyAndSize, getDependentsCounts, getRankLabel } from './ranking.js';
@@ -107,6 +107,7 @@ function runUploadSubmit() {
 
   try {
     if (listToShow === pendingUploadProjects) {
+      clearAllOverrides();
       setProjects(pendingUploadProjects);
       logger.info('upload.submit: persisted', pendingUploadProjects.length, 'raw projects');
     }

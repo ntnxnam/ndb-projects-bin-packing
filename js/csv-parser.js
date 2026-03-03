@@ -150,7 +150,7 @@ export function rowsToProjects(rows) {
       ? iTotalPersonMonthsStartsWith
       : iTotalPersonMonthsContains;
   const iQAResources = header.findIndex(h => (h || '').trim().indexOf('Num of QA required') === 0);
-  const iStartDate = idx('Start Date') >= 0 ? idx('Start Date') : idx('Start Month');
+  const iStartDate = idx('Start Date');
   const iAdditionalResources = idx('Additional Resources');
   const iSizingComment = idx('Sizing Comment');
   const iCompletedPctExact = idx('How much of this is Completed in % (do not add %, just put a number)');

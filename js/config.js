@@ -8,7 +8,7 @@
 export const DEFAULT_START = '2026-04-01';
 
 /** Default timeline end / viewport (YYYY-MM-DD). */
-export const DEFAULT_END = '2027-01-30';
+export const DEFAULT_END = '2026-12-15';
 
 /** Default headcount (number of FTEs). */
 export const DEFAULT_NUM_FTES = 85;
@@ -27,6 +27,18 @@ export const FILTERS_STORAGE_KEY = 'ndb-projects-filters';
 
 /** localStorage key for user-overridden start dates (rowNumber → dateString). */
 export const START_DATE_OVERRIDES_KEY = 'ndb-start-date-overrides';
+
+/** localStorage key for "fund first" flags (rowNumber → true). */
+export const FUND_FIRST_KEY = 'ndb-fund-first';
+
+/** localStorage key for user-overridden completed % (rowNumber → number). */
+export const COMPLETED_PCT_OVERRIDES_KEY = 'ndb-completed-pct-overrides';
+
+/** localStorage key for user-overridden FTE / people count (rowNumber → number). */
+export const FTE_OVERRIDES_KEY = 'ndb-fte-overrides';
+
+/** localStorage key for user-overridden total person-months (rowNumber → number). */
+export const DURATION_OVERRIDES_KEY = 'ndb-duration-overrides';
 
 /** Enable debug logging when true. Set via query param ?debug=1 or build. */
 export const DEBUG = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);

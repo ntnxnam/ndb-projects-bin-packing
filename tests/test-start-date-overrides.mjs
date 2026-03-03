@@ -412,29 +412,93 @@ const r5 = simplePack(fullProjects, '2026-04-01', 85);
 assertEqual(r5[1].startMonth, 0, '4e: row 2 back to month 0');
 
 /* ═══════════════════════════════════════════════════════
-   5. Edge cases
+   5. Rapid successive overrides (simulates the bug scenario)
+   ═══════════════════════════════════════════════════════ */
+section('Rapid successive overrides on same project');
+
+localStorage.clear();
+
+const rapidProjects = [
+  { rowNumber: 1, durationMonths: 3, totalResources: 5, requestedStartDate: null, dependencyRowNumbers: [], completedPct: 0 },
+  { rowNumber: 2, durationMonths: 4, totalResources: 3, requestedStartDate: 'Jun 2026', dependencyRowNumbers: [], completedPct: 0 },
+];
+
+// 5a. First override on row 1
+setStartDateOverride(1, '2026-08-01');
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[0].requestedStartDate, '2026-08-01', '5rapid-a: first override applied');
+assertEqual(rapidProjects[0]._csvStartDate, null, '5rapid-a: CSV stashed as null');
+const rr1 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr1[0].startMonth, 4, '5rapid-a: row 1 starts Aug (month 4)');
+
+// 5b. Second override on SAME row 1 — this is the bug scenario
+setStartDateOverride(1, '2026-11-01');
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[0].requestedStartDate, '2026-11-01', '5rapid-b: second override applied');
+assertEqual(rapidProjects[0]._csvStartDate, null, '5rapid-b: CSV still null (not corrupted)');
+const rr2 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr2[0].startMonth, 7, '5rapid-b: row 1 starts Nov (month 7)');
+
+// 5c. Third override on SAME row 1 — earlier date this time
+setStartDateOverride(1, '2026-06-01');
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[0].requestedStartDate, '2026-06-01', '5rapid-c: third override applied');
+assertEqual(rapidProjects[0]._csvStartDate, null, '5rapid-c: CSV still null');
+const rr3 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr3[0].startMonth, 2, '5rapid-c: row 1 starts Jun (month 2)');
+
+// 5d. Clear override → back to CSV null → month 0
+setStartDateOverride(1, null);
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[0].requestedStartDate, null, '5rapid-d: cleared, back to null');
+const rr4 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr4[0].startMonth, 0, '5rapid-d: row 1 back to month 0');
+
+// 5e. Override row 2 multiple times (has CSV value "Jun 2026")
+setStartDateOverride(2, '2026-10-01');
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[1].requestedStartDate, '2026-10-01', '5rapid-e: row 2 overridden to Oct');
+assertEqual(rapidProjects[1]._csvStartDate, 'Jun 2026', '5rapid-e: CSV preserved');
+const rr5 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr5[1].startMonth, 6, '5rapid-e: row 2 starts Oct (month 6)');
+
+setStartDateOverride(2, '2027-01-01');
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[1].requestedStartDate, '2027-01-01', '5rapid-e2: row 2 changed to Jan 2027');
+assertEqual(rapidProjects[1]._csvStartDate, 'Jun 2026', '5rapid-e2: CSV still Jun 2026');
+const rr6 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr6[1].startMonth, 9, '5rapid-e2: row 2 starts Jan 2027 (month 9)');
+
+setStartDateOverride(2, null);
+applyStartDateOverrides(rapidProjects);
+assertEqual(rapidProjects[1].requestedStartDate, 'Jun 2026', '5rapid-e3: row 2 restored to CSV "Jun 2026"');
+const rr7 = simplePack(rapidProjects, '2026-04-01', 85);
+assertEqual(rr7[1].startMonth, 2, '5rapid-e3: row 2 back to Jun (month 2)');
+
+/* ═══════════════════════════════════════════════════════
+   6. Edge cases
    ═══════════════════════════════════════════════════════ */
 section('Edge cases');
 
-// 5a. Override with empty string acts like clearing
+// 6a. Override with empty string acts like clearing
 localStorage.clear();
 setStartDateOverride(1, '');
 const ov = getStartDateOverrides();
-assert(!('1' in ov), '5a: empty string clears override (falsy check)');
+assert(!('1' in ov), '6a: empty string clears override (falsy check)');
 
-// 5b. Project with no rowNumber is skipped by applyStartDateOverrides
+// 6b. Project with no rowNumber is skipped by applyStartDateOverrides
 const noRowProjs = [{ rowNumber: null, requestedStartDate: 'Jun 2026' }];
 setStartDateOverride('null', '2027-01-01');
 applyStartDateOverrides(noRowProjs);
-assertEqual(noRowProjs[0].requestedStartDate, 'Jun 2026', '5b: null rowNumber → untouched');
+assertEqual(noRowProjs[0].requestedStartDate, 'Jun 2026', '6b: null rowNumber → untouched');
 
-// 5c. Corrupt localStorage → returns empty
+// 6c. Corrupt localStorage → returns empty
 localStorage.setItem(START_DATE_OVERRIDES_KEY, 'not-json{{{');
-assertEqual(getStartDateOverrides(), {}, '5c: corrupt JSON → empty overrides');
+assertEqual(getStartDateOverrides(), {}, '6c: corrupt JSON → empty overrides');
 
-// 5d. Array in localStorage → returns empty
+// 6d. Array in localStorage → returns empty
 localStorage.setItem(START_DATE_OVERRIDES_KEY, '[1,2,3]');
-assertEqual(getStartDateOverrides(), {}, '5d: array → empty overrides');
+assertEqual(getStartDateOverrides(), {}, '6d: array → empty overrides');
 
 /* ═══════════════════════════════════════════════════════
    Results
