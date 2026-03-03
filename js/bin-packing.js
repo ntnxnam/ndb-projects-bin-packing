@@ -415,14 +415,12 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     }
   }
 
-  for (let i = 0; i < sorted.length; i++) {
-    const p = sorted[i];
+  /* Place a single project into the schedule, updating usage and endByRow.
+     Returns the schedule entry, or null if the project is a resource-group child. */
+  function placeProject(p) {
+    if (p.isResourceGroupChild) return null;
 
-    if (p.isResourceGroupChild) continue;
-
-    /* --- Type 2a pool parent: container bar from pool data --- */
     const isPoolParent = p.resourceGroupRole === 'pool-parent' && p._pool;
-
     let rawMonths, rawFte, missingDurationData;
 
     if (isPoolParent) {
@@ -431,7 +429,6 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
       const poolFte = pool.totalResources || 0;
       const poolPM = pool.totalPersonMonthsNum;
 
-      /* Budget duration: person-months / (people × capacity%) */
       let budgetMonths = 0;
       if (poolPM > 0 && poolFte > 0 && pct > 0) {
         budgetMonths = Math.max(1, Math.ceil(poolPM / (poolFte * pct)));
@@ -439,14 +436,10 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
         budgetMonths = pool.durationMonths;
       }
 
-      /* Mini bin-packing: schedule sub-projects within the pool's people budget.
-         1 person per sub-project; at most poolFte run in parallel.
-         Priority: sub-projects that block the most others start first. */
       const children = childrenByParentRow.get(p.rowNumber) || [];
       const allSubProjects = [p, ...children];
       const siblingRows = new Set(allSubProjects.map(s => s.rowNumber));
 
-      /* Count how many pool siblings each sub-project blocks (for ranking) */
       const poolBlockCount = new Map();
       for (const sub of allSubProjects) {
         let count = 0;
@@ -462,18 +455,17 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
       const poolUsage = new Map();
       const poolSlots = Math.max(1, poolFte);
 
-      function poolUsedAt(month) { return poolUsage.get(month) ?? 0; }
-      function addPoolUsage(start, dur) {
+      const poolUsedAt = (month) => poolUsage.get(month) ?? 0;
+      const addPoolUsage = (start, dur) => {
         for (let m = start; m < start + dur; m++) poolUsage.set(m, (poolUsage.get(m) ?? 0) + 1);
-      }
-      function canFitPool(start, dur) {
+      };
+      const canFitPoolLocal = (start, dur) => {
         for (let m = start; m < start + dur; m++) {
           if (poolUsedAt(m) >= poolSlots) return false;
         }
         return true;
-      }
+      };
 
-      /* Rank: most blockers first, then longest duration first, then row number */
       const ranked = [...allSubProjects].sort((a, b) => {
         const ba = poolBlockCount.get(a.rowNumber) ?? 0;
         const bb = poolBlockCount.get(b.rowNumber) ?? 0;
@@ -484,7 +476,6 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
         return (a.rowNumber ?? 0) - (b.rowNumber ?? 0);
       });
 
-      /* Schedule in rank order, respecting deps + capacity */
       const scheduled = new Set();
       const remaining = [...ranked];
       while (remaining.length > 0) {
@@ -502,16 +493,11 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
             const depEnd = subEndByRow.get(depRow);
             if (depEnd != null) subStart = Math.max(subStart, depEnd);
           }
-          while (!canFitPool(subStart, subMonths)) subStart++;
+          while (!canFitPoolLocal(subStart, subMonths)) subStart++;
 
           subEndByRow.set(sub.rowNumber, subStart + subMonths);
           addPoolUsage(subStart, subMonths);
-          subSchedule.push({
-            project: sub,
-            startMonthOffset: subStart,
-            months: subMonths,
-            poolDependsOn: subDeps,
-          });
+          subSchedule.push({ project: sub, startMonthOffset: subStart, months: subMonths, poolDependsOn: subDeps });
           scheduled.add(sub.rowNumber);
           remaining.splice(idx, 1);
           placed = true;
@@ -537,13 +523,9 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
       }
 
       const chainDuration = Math.max(0, ...Array.from(subEndByRow.values()));
-
-      /* Container spans the longer of budget vs chain */
       rawMonths = Math.max(budgetMonths, chainDuration, 1);
       rawFte = poolFte;
       missingDurationData = budgetMonths <= 0;
-
-      /* Stash sub-schedule and durations on the entry for gantt rendering */
       p._poolSchedule = subSchedule;
       p._poolBudgetMonths = budgetMonths;
       p._poolChainMonths = chainDuration;
@@ -557,21 +539,17 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     const fte = rawFte <= 0 ? 0 : rawFte;
     const isInProgress = !!p.inProgress;
 
-    /* All dependencies: cannot START until the dependency finishes (strict sequencing). */
     let earliestStartMonth = 0;
-
     if (p.requestedStartDate) {
       const reqDate = parseRequestedStartDate(p.requestedStartDate, timelineStart);
       if (reqDate) {
         earliestStartMonth = Math.max(earliestStartMonth, monthIndex(reqDate));
       }
     }
-
     if (!isInProgress) {
       const internalDepRows = (p.dependencyRowNumbers || [])
         .map(depRow => resolveDepRow(depRow, childToParent))
         .filter(depRow => endByRow.has(depRow));
-
       for (const resolved of internalDepRows) {
         const depEnd = endByRow.get(resolved);
         if (!depEnd) continue;
@@ -579,12 +557,7 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
       }
     }
 
-    /* Capacity-constrained scheduling: start as early as dependencies allow,
-       then slide forward until the project's people fit within remaining capacity.
-       Pool parents use actual per-month sub-project utilization instead of a
-       flat block reservation so idle pool slots remain available to other projects. */
     let startMonth = earliestStartMonth;
-
     if (isPoolParent && p._poolSchedule) {
       const poolUsageByMonth = new Map();
       for (const sub of p._poolSchedule) {
@@ -600,7 +573,6 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
         return true;
       };
       while (!canFitPoolGlobal(startMonth)) startMonth++;
-
       for (const [relMonth, slotsUsed] of poolUsageByMonth) {
         const absMonth = startMonth + relMonth;
         usage.set(absMonth, (usage.get(absMonth) ?? 0) + slotsUsed);
@@ -627,6 +599,65 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
     result.push(entry);
     if (p.rowNumber != null) {
       endByRow.set(p.rowNumber, endDateObj);
+    }
+    return entry;
+  }
+
+  /* --- Main packing loop with gap-fill ---
+     Process projects in rank order. After placing each one, try to fill
+     capacity gaps with smaller unplaced projects whose deps are met.
+     This maximizes utilization: small projects start early rather than
+     waiting behind large ones in the rank queue. */
+  const placed = new Set();
+
+  function depsMetFor(p) {
+    if (p.inProgress) return true;
+    const depRows = (p.dependencyRowNumbers || [])
+      .map(depRow => resolveDepRow(depRow, childToParent))
+      .filter(depRow => depRow !== p.rowNumber);
+    return depRows.every(depRow => endByRow.has(depRow));
+  }
+
+  for (let i = 0; i < sorted.length; i++) {
+    const p = sorted[i];
+    if (p.isResourceGroupChild || placed.has(p.rowNumber)) continue;
+
+    placeProject(p);
+    placed.add(p.rowNumber);
+
+    /* Gap-fill: try to place unplaced projects that fit, smallest FTE first */
+    const candidates = [];
+    for (let j = i + 1; j < sorted.length; j++) {
+      const c = sorted[j];
+      if (c.isResourceGroupChild || placed.has(c.rowNumber)) continue;
+      if (!depsMetFor(c)) continue;
+      candidates.push(c);
+    }
+    candidates.sort((a, b) => (totalResources(a) || 0) - (totalResources(b) || 0));
+
+    for (const c of candidates) {
+      const isPoolC = c.resourceGroupRole === 'pool-parent' && c._pool;
+      const cFte = isPoolC ? (c._pool.totalResources || 0) : (totalResources(c) || 0);
+      if (cFte <= 0) continue;
+      const cMonths = isPoolC ? 1 : (durationFor(c) || 1); // pool duration determined inside placeProject
+      let cStart = 0;
+      if (c.requestedStartDate) {
+        const reqDate = parseRequestedStartDate(c.requestedStartDate, timelineStart);
+        if (reqDate) cStart = Math.max(cStart, monthIndex(reqDate));
+      }
+      const cDepRows = (c.dependencyRowNumbers || [])
+        .map(depRow => resolveDepRow(depRow, childToParent))
+        .filter(depRow => endByRow.has(depRow));
+      for (const resolved of cDepRows) {
+        const depEnd = endByRow.get(resolved);
+        if (depEnd) cStart = Math.max(cStart, monthIndex(depEnd));
+      }
+      /* For non-pool projects, only gap-fill if it fits at its earliest start
+         without sliding (otherwise it would be placed in rank order later). */
+      if (!isPoolC && canFit(cStart, cMonths, cFte)) {
+        placeProject(c);
+        placed.add(c.rowNumber);
+      }
     }
   }
 
