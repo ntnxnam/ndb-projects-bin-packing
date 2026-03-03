@@ -493,7 +493,7 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
             const depEnd = subEndByRow.get(depRow);
             if (depEnd != null) subStart = Math.max(subStart, depEnd);
           }
-          while (!canFitPoolLocal(subStart, subMonths)) subStart++;
+          { let ps = 0; while (!canFitPoolLocal(subStart, subMonths) && ps++ < 1200) subStart++; }
 
           subEndByRow.set(sub.rowNumber, subStart + subMonths);
           addPoolUsage(subStart, subMonths);
@@ -572,14 +572,17 @@ export function packWithCapacity(projects, startDate, endDate, capacityFTE, capa
         }
         return true;
       };
-      while (!canFitPoolGlobal(startMonth)) startMonth++;
+      const MAX_SLIDE = 1200;
+      let poolSlide = 0;
+      while (!canFitPoolGlobal(startMonth) && poolSlide++ < MAX_SLIDE) startMonth++;
       for (const [relMonth, slotsUsed] of poolUsageByMonth) {
         const absMonth = startMonth + relMonth;
         usage.set(absMonth, (usage.get(absMonth) ?? 0) + slotsUsed);
       }
       p._poolStartMonth = startMonth;
     } else {
-      while (!canFit(startMonth, months, fte)) {
+      let slideCount = 0;
+      while (!canFit(startMonth, months, fte) && slideCount++ < 1200) {
         startMonth++;
       }
       addUsage(startMonth, months, fte);
