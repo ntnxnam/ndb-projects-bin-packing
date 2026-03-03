@@ -87,21 +87,21 @@ main() {
     # Change to working directory
     cd "$WORKING_DIR"
     
-    # Step 1: Create zip archive
+    # Step 1: Create zip archive (zip contents, not the directory itself,
+    # so extraction on the server doesn't create a nested folder)
     print_step "Creating zip archive..."
     if [ -d "$PROJECT_DIR" ]; then
-        # Create zip excluding unnecessary files
-        zip -r "$ZIP_FILENAME" "$PROJECT_DIR" \
-            -x "*/node_modules/*" \
-            -x "*/.git/*" \
-            -x "*/build/*" \
-            -x "*/logs/*" \
-            -x "*/.DS_Store" \
-            -x "*/ndb-projects-bin-packing.log" \
-            -x "*/*.log" \
-            -x "*/agent-transcripts/*" \
-            -x "*/.cursor/*" \
-            > /dev/null 2>&1
+        (cd "$PROJECT_DIR" && zip -r "../$ZIP_FILENAME" . \
+            -x "./node_modules/*" \
+            -x "./.git/*" \
+            -x "./build/*" \
+            -x "./logs/*" \
+            -x "./.DS_Store" \
+            -x "./ndb-projects-bin-packing.log" \
+            -x "./*.log" \
+            -x "./agent-transcripts/*" \
+            -x "./.cursor/*" \
+            > /dev/null 2>&1)
         
         if [ $? -eq 0 ]; then
             ZIP_SIZE=$(du -h "$ZIP_FILENAME" | cut -f1)
@@ -154,15 +154,17 @@ main() {
         cd ${SERVER_DEPLOY_PATH}
         
         echo -e "${CYAN}▶ Backing up current version...${NC}"
-        if [ -d "${PROJECT_NAME}" ]; then
-            mv ${PROJECT_NAME} ${PROJECT_NAME}_backup_${TIMESTAMP}
-            echo -e "${GREEN}✓ Backup created: ${PROJECT_NAME}_backup_${TIMESTAMP}${NC}"
+        BACKUP_DIR="${SERVER_DEPLOY_PATH}_backup_${TIMESTAMP}"
+        if [ -f "index.html" ]; then
+            mkdir -p "\${BACKUP_DIR}"
+            cp -a . "\${BACKUP_DIR}/" 2>/dev/null || true
+            echo -e "${GREEN}✓ Backup created: \${BACKUP_DIR}${NC}"
         else
             echo -e "${YELLOW}⚠ No existing deployment found (fresh install)${NC}"
         fi
         
         echo -e "${CYAN}▶ Extracting new version...${NC}"
-        unzip -q ${ZIP_FILENAME}
+        unzip -qo ${ZIP_FILENAME}
         if [ \$? -eq 0 ]; then
             echo -e "${GREEN}✓ Files extracted${NC}"
         else
@@ -170,12 +172,15 @@ main() {
             exit 1
         fi
         
-        echo -e "${CYAN}▶ Setting permissions...${NC}"
-        chmod +x ${PROJECT_NAME}/*.sh
-        echo -e "${GREEN}✓ Permissions set${NC}"
+        echo -e "${CYAN}▶ Cleaning up stale nested folder if present...${NC}"
+        if [ -d "${PROJECT_NAME}" ]; then
+            rm -rf "${PROJECT_NAME}"
+            echo -e "${GREEN}✓ Removed stale nested folder${NC}"
+        fi
         
-        echo -e "${CYAN}▶ Entering project directory...${NC}"
-        cd ${PROJECT_NAME}
+        echo -e "${CYAN}▶ Setting permissions...${NC}"
+        chmod +x *.sh
+        echo -e "${GREEN}✓ Permissions set${NC}"
         
         # Free port so the new server can bind (kills only processes owned by deploy user)
         echo -e "${CYAN}▶ Freeing port ${APP_PORT} (stop existing server)...${NC}"
@@ -196,7 +201,7 @@ main() {
         echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
         echo ""
         echo -e "${BLUE}📦 Archive preserved on server: ${YELLOW}${ZIP_FILENAME}${NC}"
-        echo -e "${BLUE}💾 Backup available at: ${YELLOW}${PROJECT_NAME}_backup_${TIMESTAMP}${NC}"
+        echo -e "${BLUE}💾 Backup at: ${YELLOW}\${BACKUP_DIR}${NC}"
         echo ""
 ENDSSH
     
